@@ -81,7 +81,7 @@ test('plan: the picture-only operators behind the AI seat names (BOT_OPERATORS: 
   for (const id of bots) assert.ok(fielded.audio.voice[id]?.select, `${id}: voiced once the game can field it`);
 });
 
-test('data/assets.json: voiceJp gives every voiced operator the JP twin of each Chinese line (249 operators, 4122 files); stand-ins, 盟约·辅助干员 and summons have neither', () => {
+test('data/assets.json: voiceJp gives every voiced operator the JP twin of each Chinese line (250 operators, 4136 files); stand-ins, 盟约·辅助干员 and summons have neither', () => {
   const m = readJson('data/assets.json');
   const cn = m.audio.voice;
   const jp = m.audio.voiceJp;
@@ -92,15 +92,15 @@ test('data/assets.json: voiceJp gives every voiced operator the JP twin of each 
   // (fork, docs/OUTFITS.md) the trees also carry the outfits' own voice sets, keyed by their word key ('…_epoque#28')
   const outfitKeys = new Set(Object.values(readJson('data/outfits.json')).map((r) => r.voice).filter(Boolean));
   assert.deepEqual(Object.keys(jp).filter((k) => k.includes('#')).sort(), [...outfitKeys].sort(), 'the outfit voice sets');
-  assert.equal(Object.keys(jp).filter((k) => !k.includes('#')).length, 249); // 192 / 2688 until upstream's online regeneration of 2026-11-03 (DESIGN §37.93); (fork) older-season lines + 丰川祥子 (215); 规程 adds 34 voiced operators
+  assert.equal(Object.keys(jp).filter((k) => !k.includes('#')).length, 250); // 192 / 2688 until upstream's online regeneration of 2026-11-03 (DESIGN §37.93); (fork) older-season lines + 丰川祥子 (215); 规程 adds 34 voiced operators; Alga's voice since the 2026-11-25 asset run (250)
   // the JP tree is the Chinese one with the folder swapped: same slots, same lines in the same order, same file names
   assert.deepEqual(JSON.parse(JSON.stringify(cn).replaceAll('/assets/audio/voice/cn/', '/assets/audio/voice/jp/')), jp);
   const lines = [];
   const walk = (x) => { if (typeof x === 'string') lines.push(x); else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') Object.values(x).forEach(walk); };
   for (const [k, v] of Object.entries(jp)) if (!k.includes('#')) walk(v);
   // 3009 until the lobby voice lines of the animated-card operators (2026-11-23: 58 operators × 11 lines, 3647); 规程's
-  // 34 operators add 475 (拜松, like 锡兰, has no 作战中 4 line in the source)
-  assert.equal(lines.length, 4122);
+  // 34 operators add 475 (拜松, like 锡兰, has no 作战中 4 line in the source); Alga's 14 lines arrived with the 2026-11-25 asset run
+  assert.equal(lines.length, 4136);
   for (const u of lines) assert.match(u, /^\/assets\/audio\/voice\/jp\/char_[^/]+\/cn_\d+\.mp3$/);
   // no voice: the 17 stand-ins of data/backups.json (预备干员 / 原型干员), the mode's 盟约·辅助干员, every summon
   const backups = readJson('data/backups.json');

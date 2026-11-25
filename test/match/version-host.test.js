@@ -260,7 +260,10 @@ test('a test room of a version plays in its host: test commands through the prox
 // (fork) Grand Alliance on 规程 (2026-11-25): an 8-seat large-room match runs in 规程's version host with its squads
 test('(g) an 8-seat Grand Alliance of 规程 plays in its version host: two squads, no engine error', { timeout: 300_000 }, async () => {
   const cs = versions.csOf('act3autochess@V3_1');
-  const hosts = createMatchHosts({ contents: versions, log: quiet, options: { kind: 'version', virtualTime: true, matchOptions: { botRehearsal: 0 } } });
+  // virtual time replays 8 seats as fast as it can: the host's frames to this process outrun its heartbeats on a busy CI
+  // runner (its longest single step measured 0.2 s locally). A real-time match never floods so; the watchdog is widened
+  // for this run only.
+  const hosts = createMatchHosts({ contents: versions, log: quiet, options: { kind: 'version', virtualTime: true, watchdogMs: 120_000, matchOptions: { botRehearsal: 0 } } });
   try {
     const out = frames();
     const idle = [];
