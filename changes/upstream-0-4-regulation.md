@@ -12,6 +12,11 @@
 
 - The new season is in English: 90 % of its texts come from the official EN tables (operators, skills, enemies, items shared with released content), the rest (alliances, strategies, Stronghold Abilities, equipment, the new OpFor leaders, Commands) from a community dictionary written for this fork, `tools/i18n/dict-en.act3autochess-v3_1.json`. No official EN exists for this season: these names are unofficial and will change when Yostar's arrive.
 
+### Nymph's 规程 ability adds Swift stacks again
+
+- In 规程, Nymph's ability now adds [Swift] stacks whenever an enemy in her range is Feared (+4 / +8, up to 20 / 40 a battle).
+- Before (upstream 0.4.0): it watched for Frozen instead, so it never added stacks.
+
 Kind: player
 
 Server cost: none

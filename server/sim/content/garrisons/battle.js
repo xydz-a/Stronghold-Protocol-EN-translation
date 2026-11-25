@@ -49,8 +49,12 @@ import { REGULATION_INSTALLERS, runChild, inGarrisonRange, grantBondRange } from
 
 const ids = (s) => String(s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 const EMPTY = Object.freeze([]);
-/** Status keys for check_ab_flag values used by the data (16 = 冻结). */
-const AB_FLAG_STATUS = Object.freeze({ 16: 'freeze' });
+/**
+ * Status keys for check_ab_flag values used by the data (16 = 冻结; (fork) 33 = 恐惧: 规程's 妮芙 garrison_99_a/b 「攻击范围内每有
+ * 一名敌人陷入恐惧…」 [src: data/versions/act3autochess-v3_1/garrisons.json desc], which upstream 0.4.0 read as 冻结, so
+ * her talent never added 【迅捷】 stacks).
+ */
+const AB_FLAG_STATUS = Object.freeze({ 16: 'freeze', 33: 'fear' });
 
 function garrisonIdsOf(u) {
   const list = u?.def?.raw?.garrisonIds ?? u?.def?.garrisonIds;

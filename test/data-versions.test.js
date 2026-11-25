@@ -217,12 +217,14 @@ for (const v of OTHERS) {
     for (const [file, recs] of [['items', f.items], ['bands', f.bands]]) {
       for (const r of Object.values(recs)) assert.ok(!Object.hasOwn(r, 'effectRef'), `${file} ${r.id ?? r.bandId}: no effectRef (it would name a default-version id)`);
     }
-    // (fork) 丰川祥子 stays out of an earlier version's 自选 pool (profile diyExcludedTeams, the owner's decision of
-    // 2026-11-15); today's season keeps her (the test below)
-    assert.deepEqual(profile.diyExcludedTeams, ['mujica'], `${v.id}: the profile keeps mujica out`);
-    assert.ok(f.backups.diy.excluded.includes('char_4182_oblvns'), `${v.id}: 丰川祥子 in diy.excluded`);
-    assert.ok(!f.backups.diy.ownedPool.includes('char_4182_oblvns') && !f.backups.diy.operators.char_4182_oblvns && !f.backups.units.char_4182_oblvns,
-      `${v.id}: 丰川祥子 not an owned pick`);
+    // (fork) 丰川祥子 stays out of an earlier 盟约 version's 自选 pool (profile diyExcludedTeams, the owner's decision of
+    // 2026-11-15); today's season keeps her (the test below), and so does 规程, the newer season
+    if (v.family === 'covenant') {
+      assert.deepEqual(profile.diyExcludedTeams, ['mujica'], `${v.id}: the profile keeps mujica out`);
+      assert.ok(f.backups.diy.excluded.includes('char_4182_oblvns'), `${v.id}: 丰川祥子 in diy.excluded`);
+      assert.ok(!f.backups.diy.ownedPool.includes('char_4182_oblvns') && !f.backups.diy.operators.char_4182_oblvns && !f.backups.units.char_4182_oblvns,
+        `${v.id}: 丰川祥子 not an owned pick`);
+    } else assert.ok(f.backups.diy.ownedPool.includes('char_4182_oblvns'), `${v.id}: 丰川祥子 an owned pick`);
     if (profile.expect.triggerDeviations === 'present') {
       // the deliberate deviations (DESIGN §21.29) of the operators the version has, on their TAKE_DAMAGE rows
       const devs = Object.values(f.chess).filter((c) => c.skills?.some((s) => s.trigger?.rawRule === 'TAKE_DAMAGE' && s.trigger.rule !== 'TAKE_DAMAGE'));
