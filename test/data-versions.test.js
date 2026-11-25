@@ -270,7 +270,7 @@ test('data/: today\'s season keeps 丰川祥子 as an owned 自选 pick (only th
 // (fork, user decisions of 2026-11-24) leaders take 侵蚀 in every version (content/bosses.js): tools/build-data.mjs
 // DROPPED_TIPS leaves the CN act1autochess tip that says otherwise out of config.tips, and nothing else.
 const CORROSION_TIP = '最终攻势中，敌方领袖不会受到侵蚀损伤';
-test('config.tips: no version says leaders take no 侵蚀; 22 tips in both 第一期 versions, 21 in 第二期, the English texts on the right tips', () => {
+test('config.tips: no version says leaders take no 侵蚀; 22 tips in both 第一期 versions, 21 in 第二期 and 规程, the English texts on the right tips', () => {
   const counts = {};
   for (const v of VERSIONS) {
     const dir = join(ROOT, 'data', v.dir);
@@ -288,7 +288,7 @@ test('config.tips: no version says leaders take no 侵蚀; 22 tips in both 第�
     assert.equal(at, tips.length - 1, `${v.id}: the Hidden Core tip is the last one`);
     assert.match(en[at].tip, /Hidden Core/, v.id);
   }
-  assert.deepEqual(counts, { act2autochess: 21, 'act2autochess@V2_1': 21, act1autochess: 22, 'act1autochess@V1_1': 22 });
+  assert.deepEqual(counts, { act2autochess: 21, 'act2autochess@V2_1': 21, act1autochess: 22, 'act1autochess@V1_1': 22, 'act3autochess@V3_1': 21 });
 });
 
 test('config.tips: the official gameTipsList without that tip, in its order', { skip: process.env.DATA_DIR && 'DATA_DIR set' }, async (t) => {

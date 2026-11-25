@@ -696,9 +696,9 @@ test('the cards\' look: the user\'s pick, one thin line on the smoothed mask, no
 test('the dissolve Worker loads the page\'s drawing code: cardEntrance.js imports nothing of the page', async () => {
   const fs = await import('node:fs');
   const imports = (f) => [...fs.readFileSync(new URL(f, import.meta.url), 'utf8').matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
-  // assetUrls.js has no imports of its own; data.js / device.js / the hooks touch the page and stay in cardEntranceHook.js
-  assert.deepEqual(imports('../../public/js/ui/cardEntrance.js'), ['./assetUrls.js']);
-  assert.deepEqual(imports('../../public/js/ui/assetUrls.js'), []);
+  // nothing at all: assetUrls.js imports data.js since upstream 0.4.0, so cardEntrance.js keeps its own uiUrl; data.js /
+  // device.js / the hooks touch the page and stay in cardEntranceHook.js
+  assert.deepEqual(imports('../../public/js/ui/cardEntrance.js'), []);
   assert.deepEqual(imports('../../public/js/ui/dissolveWorker.js'), ['./cardEntrance.js']);
   const hook = await import('../../public/js/ui/cardEntranceHook.js');
   assert.equal(typeof hook.useCardEntrance, 'function');

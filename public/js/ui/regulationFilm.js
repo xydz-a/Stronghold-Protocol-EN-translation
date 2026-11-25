@@ -97,10 +97,11 @@ export function preloadRegulation(pack, ms) {
     img.onerror = () => resolve(false);
     img.src = u;
   });
-  return Promise.race([
-    Promise.all(urls.map(one)).then((all) => all.every(Boolean)),
-    new Promise((resolve) => setTimeout(() => resolve(false), ms)),
-  ]);
+  // (fork) the timer goes once the pictures are in, as allianceScene.js preloadSprites: the entry film waits without a
+  // limit (ui/entryFilm.js NO_TIMEOUT_MS), and a 24-day timer left behind kept Node's test run alive
+  let timer;
+  const all = Promise.all(urls.map(one)).then((ok) => { clearTimeout(timer); return ok.every(Boolean); });
+  return Promise.race([all, new Promise((resolve) => { timer = setTimeout(() => resolve(false), ms); })]);
 }
 
 /**
