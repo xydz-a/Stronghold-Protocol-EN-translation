@@ -25,6 +25,7 @@ for (const [engine, executablePath] of engines) test(`${engine}: a waiting-room 
   const srv = await startRealServer();
   const puppeteer = (await import('puppeteer-core')).default;
   const errorStacks = [];
+  // (fork) Chrome takes the Client's own flags through `opts` (test/e2e/client.mjs: gpuArgs(), so --mute-audio)
   const launcher = { launch: async (opts) => {
     const browser = await puppeteer.launch({ ...opts, executablePath,
       ...(engine === 'firefox' ? { browser: 'firefox', args: [] } : {}) });

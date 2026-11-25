@@ -32,7 +32,7 @@ describe('规程 briefing map is a 3D render of the stage', { skip: !ENABLED && 
     browser = await puppeteer.launch({
       executablePath: CHROME,
       headless: true,
-      args: ['--no-sandbox', '--no-first-run', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+      args: ['--no-sandbox', '--mute-audio', '--no-first-run', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
     });
     mkdirSync(OUT, { recursive: true });
   });

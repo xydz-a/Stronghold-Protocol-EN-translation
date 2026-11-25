@@ -154,7 +154,7 @@ describe('planCross: versions every region enables, Grand Alliances where their 
 // ---- the lobby ---------------------------------------------------------------------------------------------------------
 
 const VANILLA = 'a0'.repeat(32);
-const CS = { [V21]: 'b1'.repeat(32), [V1]: 'c1'.repeat(32), 'act1autochess@V1_1': 'd1'.repeat(32) };
+const CS = { [V21]: 'b1'.repeat(32), [V1]: 'c1'.repeat(32), 'act1autochess@V1_1': 'd1'.repeat(32), 'act3autochess@V3_1': 'e1'.repeat(32) };
 const ALL = VERSIONS.map((v) => v.id);
 const quiet = { info() {}, warn() {}, error() {}, debug() {} };
 const csOf = (id) => (id === DEFAULT_VERSION ? VANILLA : CS[id]);
@@ -259,7 +259,7 @@ describe('lobby: versions', () => {
     }
   });
 
-  test('queue.join at 终极 with every version ticked: 终极 for 第二期下半, 绝境 for each other version', () => {
+  test('queue.join at 终极 with every version ticked: 终极 for 第二期下半 and 规程, 绝境 for each other version', () => {
     const h = harness();
     try {
       const a = h.player('A');
@@ -267,7 +267,8 @@ describe('lobby: versions', () => {
       const st = h.got(a, 'queue.state').at(-1);
       assert.equal(st.difficulty, 'ABYSS');
       assert.deepEqual(st.versions, ALL, 'no version dropped');
-      assert.deepEqual(st.at, Object.fromEntries(ALL.filter((v) => v !== DEFAULT_VERSION).map((v) => [v, 'HARD'])));
+      // 规程·序列Ⅰ offers 终极 in co-op (its MULTI ABYSS mode), so it keeps the asked difficulty like 第二期下半
+      assert.deepEqual(st.at, Object.fromEntries(ALL.filter((v) => v !== DEFAULT_VERSION && v !== 'act3autochess@V3_1').map((v) => [v, 'HARD'])));
       // a repeat without the older versions keeps the wait and clears their difficulties
       ok(h.lobby.queueJoin(a, { difficulty: 'ABYSS', versions: [DEFAULT_VERSION] }));
       assert.equal(h.got(a, 'queue.state').at(-1).at, undefined);

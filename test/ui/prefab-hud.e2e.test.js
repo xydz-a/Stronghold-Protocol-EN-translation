@@ -25,7 +25,7 @@ describe('规程 official prefab HUD (headless Chrome)', { skip: !ENABLED && 'se
     const puppeteer = (await import('puppeteer-core')).default;
     srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true, versions: { enabled: 'all' } });
     base = `http://127.0.0.1:${srv.port}`;
-    browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--force-device-scale-factor=1'] });
+    browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--mute-audio', '--force-device-scale-factor=1'] });
   });
 
   after(async () => {

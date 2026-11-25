@@ -24,7 +24,7 @@ test('real cache-only misses, with and without the real service worker, never re
     serve.call(srv.server, req, res);
   });
   const { default: puppeteer } = await import('puppeteer-core');
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--mute-audio'] });
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.goto(`${srv.url}/resource-check-fixture`);
@@ -87,7 +87,7 @@ test('under the real worker, a file that is only in the HTTP cache counts and no
     serve.call(srv.server, req, res);
   });
   const { default: puppeteer } = await import('puppeteer-core');
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--mute-audio'] });
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.setCacheEnabled(true);
