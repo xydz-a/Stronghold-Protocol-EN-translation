@@ -44,6 +44,9 @@ function machineKit(owner) {
   return {
     trait: { noAttack: true },
     install(battle, dev) {
+      // (fork) 不会受到攻击 and 无敌, as 白铁's 支援装置 (op-ironmn.js, PRTS 持有无敌): untargetable alone still let the 活性源石
+      // tick and enemy effects that ignore selection wear it down [src: David's playtest of 2026-11-25, in-game behaviour]
+      battle.addBuff(dev, { key: 'robrta:device', flags: { untargetable: true, invulnerable: true }, persist: true, allowDead: true });
       battle.on('deploy', (ctx) => {
         if (ctx.unit !== dev) return;
         const talent = tokenTalent(battle, owner);

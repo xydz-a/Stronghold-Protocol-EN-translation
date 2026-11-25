@@ -153,7 +153,7 @@ import { fxForm } from '../../../shared/protocol.js';
 import { Camera, presetCamera, lerpCamera, easeInOutCubic, pickTile, normRect } from './projection.js';
 import { SnapshotBuffer, frameTime } from './interp.js';
 import { BattlePresentation } from './battlePresentation.js';
-import { TileField } from './tiles.js';
+import { TileField, deviceModelOf } from './tiles.js';
 import { UnitView, ItemView, DeviceView, FORMS, syncView } from './units.js';
 import { FxSystem, ensureDamageFonts, projSpeed } from './fx.js';
 import { OfficialFx } from './vfx/system.js';
@@ -1749,14 +1749,17 @@ export async function createFieldView(host, options = {}) {
       color: (info.golden || rec?.isGolden) ? 0xffc600 : TIER_COLORS[tier] || TIER_COLORS[1] };
   }
 
+  // (fork) a device drawn with its own enemy model (tiles.js deviceModelOf: 寻宝人's “模拟宝藏”)
+  const modelDevice = (info) => deviceModelOf(info, (id) => assets.spineEntry?.(id));
+
   function battleView(id) {
     let v = views.get(id);
     if (v) return v;
     const info = infos.get(id);
     if (!info || gone.has(id)) return null;
-    v = info.kind === 'device' ? new DeviceView(ctx, info)
+    v = info.kind === 'device' && !modelDevice(info) ? new DeviceView(ctx, info)
       : info.kind === 'item' ? new ItemView(ctx, scoutItemInfo(info))
-      : new UnitView(ctx, info, { prep: !!battleMeta?.prep && info.side === 'ally' });
+      : new UnitView(ctx, modelDevice(info) ? { ...info, kind: 'enemy' } : info, { prep: !!battleMeta?.prep && info.side === 'ally' });
     // a teammate's operator shows its equipped items like the own prep bench does (item pips; user playtest #2:
     // at the unit, not only in the detail card) — prep surfaces only, the battle HUD stays as it is
     if (v.setItems && battleMeta?.prep && Array.isArray(info.items) && info.items.length) {

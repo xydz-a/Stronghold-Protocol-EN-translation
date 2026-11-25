@@ -909,9 +909,18 @@ export class SpineActor {
   _baseName() {
     if (this.base === 'move') {
       const mv = this.roles.move;
-      if (mv && this.has(mv.loop)) return mv.loop;
+      // (fork) a walk cycle of zero length is no walk: it holds the setup pose, in which 后兽 (enemy_2123_dyjsww, Move_Loop 0 s)
+      // shows no part at all — the ox vanished whenever it walked (David's playtest of 2026-11-25). Its idle plays instead.
+      if (mv && this.has(mv.loop) && this._hasLength(mv.loop)) return mv.loop;
     }
     return this._idleName();
+  }
+
+  /** (fork) Whether clip `name` lasts longer than 0 s (the manifest's length, else the skeleton's; unknown counts as yes). */
+  _hasLength(name) {
+    const d = this.durations?.[name];
+    if (typeof d === 'number') return d > 0;
+    try { const a = this.spine.spineData.findAnimation(name); return !a || !(a.duration <= 0); } catch { return true; }
   }
 
   _play(name, loop, { timeScale = 1, mix, track = 0, start = 0 } = {}) {

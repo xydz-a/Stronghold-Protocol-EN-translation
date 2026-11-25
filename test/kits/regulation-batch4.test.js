@@ -491,3 +491,17 @@ test('a 60-second battle of all nine does not throw', (t) => {
   assert.ok(devs.length >= 1);
   if (!robrta.alive) assert.ok(devs.every((d) => !d.alive));
 });
+
+test('(fork) 罗比菈塔\'s 造型仪 is untargetable and takes no damage (terrain, enemies)', (t) => {
+  use(t);
+  const h = fight('char_484_robrta', { skill: 0, col: 4, enemies: false });
+  began(h);
+  const u = h.unit(1);
+  const dev = h.battle.allyUnits.find((d) => d.ownerUnit === u && d.defId === 'token_10018_robrta_mach' && d.alive);
+  assert.ok(dev.s.flags.untargetable && dev.s.flags.invulnerable);
+  const hp = dev.hp;
+  h.battle.dealDamage(null, dev, { amount: 500, type: 'true', canDodge: false, tags: ['terrain'] });
+  h.battle.dealDamage({ source: null, target: dev, amount: 500, type: 'phys' });
+  assert.equal(dev.hp, hp);
+  assert.equal(dev.alive, true);
+});

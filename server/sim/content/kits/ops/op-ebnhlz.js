@@ -53,7 +53,8 @@
 //   then [ASSUMED: re-selected when it lands] takes 黑键's ATK × atk_scale arts from the remnant (备注 "伤害来源为召唤物自身，
 //   伤害计算使用持有者的攻击力") and a 中力 (force 1) inward push towards it (备注 "此处的“拖拽”实际为反方向的推开"; template
 //   mint_s_2[pull], Battle.push inward), then it withdraws (suicide). It leaves after the token talent's 30 s or when 黑键
-//   leaves the field (备注; die_to_kill_token). Its data carries no 不会受到攻击: enemies may target it [ASSUMED]; no per-owner
+//   leaves the field (备注; die_to_kill_token). (fork) Untargetable and invulnerable: PRTS lists it as a 装置 (「通常无法被任何常规手段
+//   选中」) [src: PRTS 旧日残影 §属性; David's playtest of 2026-11-25]; until then enemies could target and damage it. No per-owner
 //   deploy limit applies (several stand at once).
 // - S3 寂静之声 (MANUAL, 30 s, data DEFAULT): ASPD +attack_speed, ATK +atk, attacks only elite or leader enemies (S3 mode
 //   Trigger enemyLevelMask 6; with none in range he stores energy), every energy × talent_scale_multiplier (备注 "天赋伤害
@@ -132,6 +133,7 @@ function remnantKit(owner) {
     skill: null,
     trait: { noAttack: true },
     install(battle, t) {
+      battle.addBuff(t, { key: 'ebnhlz:remnant', flags: { untargetable: true, invulnerable: true }, persist: true, allowDead: true });
       const bb = t.def?.skill?.bb ?? {};
       const scale = num(bb.atk_scale, 1), force = num(bb.force, 1);
       const life = num((t.def?.talents ?? []).find((x) => x && x.bb && x.bb.duration != null)?.bb.duration, REMNANT_LIFE);

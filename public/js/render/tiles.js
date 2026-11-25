@@ -220,6 +220,17 @@ export function deviceBoxOf(defId) {
   if (k.includes('blower')) return DEVICE_BOX.blower;
   return null;
 }
+/**
+ * (fork) Whether a battle device is drawn with its own model instead of a box: an enemy record that has one (寻宝人's
+ * “模拟宝藏”, enemy_9038_achest — an ally device in the sim, bands/commands.js; on the prep board it already shows the
+ * model: views.js prepMapChars). David's playtest of 2026-11-25: the chest turned into the generic box when the battle
+ * began. Stage devices (crates, turrets, platforms, blowers) keep their boxes. `spineEntry`: assets.spineEntry.
+ */
+export function deviceModelOf(info, spineEntry) {
+  if (info?.kind !== 'device' || deviceBoxOf(info.defId)) return false;
+  const id = String(info.spine || info.defId || '');
+  return id.startsWith('enemy_') && typeof spineEntry === 'function' && !!spineEntry(id);
+}
 /** Texture rotation (clockwise quarter turns) so a ▶ icon on a device top points along its `dir`. */
 const DIR_ROT = Object.freeze({ RIGHT: 0, DOWN: 1, LEFT: 2, UP: 3 });
 

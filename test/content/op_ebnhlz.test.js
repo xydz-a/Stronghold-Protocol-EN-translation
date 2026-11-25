@@ -461,3 +461,15 @@ test('S3 寂静之声 (MANUAL, data SEARCH — official [SKILL_RANGE_ENEMY] with
     done(h);
   }
 });
+
+test('(fork) 旧日残影 is untargetable and takes no damage (PRTS: a 装置)', () => {
+  const { h, u } = field({ tier: 6, elite: true, mod: MD, skill: 1 });
+  u.skill.gainSp(999);
+  assert.ok(h.runUntil(() => h.b.allyUnits.some((t) => t.defId === REMNANT && t.alive), 5), 'a remnant');
+  const r = h.b.allyUnits.find((t) => t.defId === REMNANT && t.alive);
+  assert.ok(r.s.flags.untargetable && r.s.flags.invulnerable);
+  const hp = r.hp;
+  h.b.dealDamage(null, r, { amount: 5000, type: 'true', canDodge: false, tags: ['terrain'] });
+  assert.equal(r.hp, hp);
+  assert.equal(r.alive, true);
+});

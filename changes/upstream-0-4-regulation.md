@@ -27,6 +27,12 @@
 - A Command switched mid-match (with the dice item) is described in the player's language. Before: in Chinese.
 - 规程 texts say "defeated" where they said "knocked down" (the official EN wording for 被击倒).
 
+### 规程 playtest fixes, part 2 (2026-11-25)
+
+- Roberta's Full-Auto Modeler and Ebenholz's Old Day Remnants can no longer be targeted or damaged (Originium tiles, enemy effects). Before: Originium tiles and enemy effects that ignore targeting wore them down, and enemies could target the Remnants [src: PRTS 旧日残影 §属性 (装置); David's playtest].
+- Bestial Hou (Bestial Ju's companion) stays visible while it walks. Before: its walk animation has no length, so it was drawn in an empty pose and vanished whenever it moved.
+- Treasure Hunter's Simulated Treasure keeps its chest model during combat. Before: it turned into the generic device box when the battle began.
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.
