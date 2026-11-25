@@ -11,7 +11,9 @@
 // film never runs ahead of its files: their download starts with the page, a 加载中 card covers the wait. Never over
 // a room or a match: the route is watched from the card on, and a session restored into a room / a match while the card
 // waits or the film runs takes the overlay down at once, silences the cue and hands the music back to that screen.
-// main.js calls playEntryFilm at boot and watchTitleReturns for each return to the title.
+// main.js calls playEntryFilm at boot and watchTitleReturns for each return to the title. A 规程 start (versions.js
+// startupVersion) plays 规程's own opening instead (ui/regulationFilm.js: the client's season entry, DESIGN §37.147)
+// through the same card, skip, cue and music hold.
 import { store, selectRoute } from '../store.js';
 import { audio, resolveBgm } from '../audio.js';
 import { data } from '../data.js';
@@ -19,6 +21,8 @@ import { reducedMotion, firstTapPending, fsTrace } from './device.js';
 import { mountAllianceIntro, preloadSprites, setCycleOrigin, INTRO_AUDIO, INTRO_SPAN } from './allianceScene.js';
 import { t } from '../../../shared/i18n.js';
 import { scriptOf } from '../../../shared/i18nPacks.js';
+import { DEFAULT_VERSION } from '../../../shared/versions.js';
+import { startupVersion } from '../versions.js';
 
 // The cue for a manifest that does not list it: the manifest's own entry (audio.sfx.ui.load) carries the content hash, so
 // the worker answers it from a finished download (GitHub #725, §37.99).
@@ -63,12 +67,15 @@ function phoneReady() {
   return globalThis.innerWidth > globalThis.innerHeight;
 }
 
-/** The film's sound files as the settings can hear them: the cue, and the lobby music unless silent or the player's own. */
-function filmSounds() {
+/**
+ * The film's sound files as the settings can hear them: the cue, and the lobby music unless silent or the player's own.
+ * @param {string} [version]  the version whose lobby track the film hands over to
+ */
+function filmSounds(version = DEFAULT_VERSION) {
   const manifest = data.get('assets');
   const listed = manifest?.audio?.sfx?.ui?.load;
   const cue = typeof listed === 'string' && listed ? listed : ENTRY_SFX;
-  const track = audio.bgmSilent || audio.lobbyTrack ? null : resolveBgm(manifest, 'lobby');
+  const track = audio.bgmSilent || audio.lobbyTrack ? null : resolveBgm(manifest, 'lobby', version);
   return { cue: audio.volumes?.muted || audio.volumes?.sfx <= 0 ? null : cue, music: [track?.intro, track?.loop].filter(Boolean) };
 }
 
@@ -80,26 +87,30 @@ const fetchSounds = (urls) => Promise.all(urls.map((url) => audio.prefetch(url, 
  * with no sound, or not at all, because its art and sound were still downloading): the art and the sound. It takes as
  * long as it takes: the film waits. True when the film can play; false only when a sprite failed (a host without the art).
  * A sound that failed outright does not hold the film back: a host may have no audio.
+ * @param {Film} film
  * @returns {Promise<boolean>}
  */
-async function loadFilm() {
+async function loadFilm(film) {
   try { await data.load('assets'); } catch { return false; }
-  const { cue, music } = filmSounds();
-  const [art] = await Promise.all([preloadSprites(undefined, NO_TIMEOUT_MS), fetchSounds([cue, ...music].filter(Boolean))]);
+  const { cue, music } = filmSounds(film.version);
+  const [art] = await Promise.all([film.preload(NO_TIMEOUT_MS), fetchSounds([cue, ...music].filter(Boolean))]);
   return art === true;
 }
 
 /** No film this time: the title's music is still what the page needs now, ready for the first gesture. */
-async function loadTitleSound() {
+async function loadTitleSound(version = DEFAULT_VERSION) {
   try { await data.load('assets'); } catch { return; }
-  await fetchSounds(filmSounds().music);
+  await fetchSounds(filmSounds(version).music);
 }
 
-/** Decode the sound (already downloaded: loadFilm) once the context runs; null when nothing can be heard now. */
-async function prepareSound() {
+/**
+ * Decode the sound (already downloaded: loadFilm) once the context runs; null when nothing can be heard now.
+ * @param {string} version  the version whose lobby track the film hands over to
+ */
+async function prepareSound(version) {
   const ctx = audio.ctx;
   if (!ctx || ctx.state !== 'running' || audio.volumes?.muted) return null;
-  const { cue, music } = filmSounds();
+  const { cue, music } = filmSounds(version);
   const wait = (p) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((r) => setTimeout(() => r(null), DECODE_WAIT_MS))]);
   const [sfx] = await Promise.all([wait(cue ? audio._buffer(cue) : null), ...music.map((url) => wait(audio._buffer(url)))]);
   return { sfx };
@@ -227,11 +238,58 @@ function showTapCard() {
 }
 
 /**
+ * @typedef {{ render: (t: number) => void, grain: () => void, destroy: () => void }} FilmScene
+ * @typedef {{ label: string, mount: (host: HTMLElement) => FilmScene, preload: (ms: number) => Promise<boolean>,
+ *   span: { from: number, fadeAt: number, to: number }, audio: { sfxAt: number, bgmAt: number }, version: string,
+ *   origin?: (t0: number) => void }} Film  span / audio: film seconds (the film runs from `from` to `to`, fading out
+ *   from `fadeAt`; the cue starts at sfxAt, the held music at bgmAt); version: whose lobby track to warm; origin: told
+ *   the moment film second `from` is on screen
+ */
+
+/**
+ * 盟约's film (ui/allianceScene.js).
+ * @param {(host: HTMLElement) => FilmScene} mount
+ * @returns {Film}
+ */
+function allianceFilm(mount) {
+  return {
+    label: t('卫戍协议') + ' · ' + t('盟约'),
+    mount,
+    preload: (ms) => preloadSprites(undefined, ms),
+    span: INTRO_SPAN,
+    audio: INTRO_AUDIO,
+    // its cues are timed to the default season's lobby track (act2autochess is not in audio.seasons)
+    version: DEFAULT_VERSION,
+    // the backdrop under the opening shows the same moment of the cycle
+    origin: (t0) => setCycleOrigin(t0 + (3.12 - INTRO_SPAN.from) * 1000),
+  };
+}
+
+/**
+ * 规程's opening (ui/regulationFilm.js), or null when its group is not extracted / not readable.
+ * @param {((host: HTMLElement) => FilmScene)|null} [mount]  tests pass a stand-in scene
+ * @returns {Promise<Film|null>}
+ */
+async function regulationFilm(mount = null) {
+  const m = await import('./regulationFilm.js');
+  const pack = await m.loadRegulationPack();
+  if (!pack) return null;
+  return {
+    label: t('卫戍协议·规程'),
+    mount: mount || ((host) => m.mountRegulationIntro(host, pack)),
+    preload: (ms) => m.preloadRegulation(pack, ms),
+    span: m.REG_SPAN,
+    audio: m.REG_AUDIO,
+    version: startupVersion(store.get()),
+  };
+}
+
+/**
  * @param {() => boolean} allowed  false once the film must go (a room / a match, the caller's skip)
- * @param {(host: HTMLElement) => { render: (t: number) => void, grain: () => void, destroy: () => void }} mount
+ * @param {Film} film
  * @param {Promise<boolean>} load  loadFilm's answer
  */
-function run(allowed, mount, load) {
+function run(allowed, film, load) {
   if (playing || !allowed()) return;
   playing = true;
   if (!document.getElementById('spa-entry-style')) {
@@ -243,7 +301,7 @@ function run(allowed, mount, load) {
   // a modal <dialog>: the top layer, so it also covers the fullscreen prompt (fullscreen-guide.js, a modal dialog too)
   const el = document.createElement('dialog');
   el.className = 'spa-entry';
-  el.setAttribute('aria-label', t('卫戍协议') + ' · ' + t('盟约'));
+  el.setAttribute('aria-label', film.label);
   el.innerHTML = '<span class="spa-entry__skip"></span>';
   el.firstChild.textContent = t('点击跳过');
   // (fork) a phone that waits for its first tap (ui/device.js installFirstTapFullscreen: that tap enters fullscreen and
@@ -375,19 +433,19 @@ function run(allowed, mount, load) {
     : null;
   Promise.all([gate, load, fonts]).then(async ([, ok]) => {
     if (done || !ok) return;
-    const sound = await prepareSound();
+    const sound = await prepareSound(film.version);
     if (done) return;
     if (!allowed()) { finish('leave'); return; }
     clearTimeout(waitTimer);
     card.remove();
     allowSkip();
     skipLabel.style.opacity = '';
-    try { scene = mount(el); } catch (err) { console.warn('[intro] could not start', err); finish('end'); return; }
+    try { scene = film.mount(el); } catch (err) { console.warn('[intro] could not start', err); finish('end'); return; }
     markFilmPlayed(); // only now: a page closed on the card plays it on the next load, with the files in the cache
-    const { from, fadeAt, to } = INTRO_SPAN;
+    const { from, fadeAt, to } = film.span;
     const lead = 0.04;
     const t0 = performance.now() + lead * 1000; // video second `from` is on screen at t0
-    setCycleOrigin(t0 + (3.12 - from) * 1000); // the backdrop under the opening shows the same moment of the cycle
+    film.origin?.(t0);
     if (sound && audio.ctx?.state === 'running') {
       const ctx = audio.ctx;
       if (sound.sfx && audio.sfxGain) {
@@ -395,7 +453,7 @@ function run(allowed, mount, load) {
           const node = ctx.createBufferSource(), gain = ctx.createGain();
           node.buffer = sound.sfx; gain.gain.value = SFX_GAIN;
           node.connect(gain); gain.connect(audio.sfxGain);
-          const when = ctx.currentTime + lead + (INTRO_AUDIO.sfxAt - from);
+          const when = ctx.currentTime + lead + Math.max(0, film.audio.sfxAt - from);
           node.start(when);
           src = { node, gain, when };
         } catch { /* ignore */ }
@@ -403,7 +461,7 @@ function run(allowed, mount, load) {
       release ??= holdBgm();
     }
     // audio.js starts a track 50 ms after it is asked for
-    if (release) bgmTimer = setTimeout(() => release?.(), Math.max(0, (lead + INTRO_AUDIO.bgmAt - from - 0.05) * 1000));
+    if (release) bgmTimer = setTimeout(() => release?.(), Math.max(0, (lead + film.audio.bgmAt - from - 0.05) * 1000));
     const frame = () => {
       if (done) return;
       const T = from + (performance.now() - t0) / 1000;
@@ -448,12 +506,18 @@ export function watchTitleReturns(opts = {}) {
  * loads. A phone that is portrait when this is called does not play it later, after a rotation.
  * (fork) The cover goes up at once and the film waits for its files, however long they take: what the opening needs is
  * loaded first, and the promise this returns says when it is in, so main.js starts everything else only then.
- * @param {{ skip?: () => boolean, mount?: typeof mountAllianceIntro }} [opts]  skip() → true when it must not (or no
- *   longer) play; mount: the scene (tests pass a stand-in)
+ * globalThis.__SP_ENTRY_FILM__ = 'off' (the browser suites) plays nothing.
+ * @param {{ skip?: () => boolean, mount?: typeof mountAllianceIntro, regulation?: () => boolean,
+ *   regulationMount?: ((host: HTMLElement) => FilmScene)|null }} [opts]  skip() → true when it must not (or no longer)
+ *   play; mount: 盟约's scene (tests pass a stand-in); regulation() → true: 规程's opening instead (asked once, here),
+ *   nothing when its group is not extracted; regulationMount: its scene (tests)
  * @returns {Promise<void>} settled once what the opening needs has loaded (at once in a restored room / match)
  */
 export async function playEntryFilm(opts = {}) {
-  const { skip = () => false, mount = mountAllianceIntro } = opts;
+  const { skip = () => false, mount = mountAllianceIntro, regulation = () => false, regulationMount = null } = opts;
+  // dev / E2E switch, like globalThis.__SP_RENDER__: the browser suites that are not about the film set it before the
+  // page loads (test/helpers/releaseNotes.js skipEntryFilm); a player's page never has it
+  if (globalThis.__SP_ENTRY_FILM__ === 'off') return;
   const allowed = () => { const r = selectRoute(store.get()); return r !== 'room' && r !== 'game' && !skip(); };
   if (!allowed()) return;
   const seen = filmPlayed() && selectRoute(store.get()) !== 'title';
@@ -462,10 +526,15 @@ export async function playEntryFilm(opts = {}) {
   const portraitSkip = touchDevice() && !phoneReady() && !firstTapPending();
   if (sessionFlag(FILM_OFF_KEY) || seen || reducedMotion() || portraitSkip) {
     if (!sessionFlag(FILM_OFF_KEY)) showTapCard();
-    await loadTitleSound();
+    let version = DEFAULT_VERSION;
+    try { if (regulation()) version = startupVersion(store.get()); } catch { /* the default's music */ }
+    await loadTitleSound(version);
     return;
   }
-  const load = loadFilm();
-  run(allowed, mount, load);
+  let film;
+  try { film = regulation() ? await regulationFilm(regulationMount) : allianceFilm(mount); } catch { return; }
+  if (!film || !allowed()) return;
+  const load = loadFilm(film);
+  run(allowed, film, load);
   await load;
 }

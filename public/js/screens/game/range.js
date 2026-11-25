@@ -3,6 +3,7 @@
 import { attackRangeGrid } from '../../../../shared/loadoutRecord.js';
 import { chessLoadout, standInLoadout } from '../../ui/gameLogic.js';
 import { tokenVariantFor } from '../../ui/gameLogic/loadout.js';
+import { isHealingRange } from '../../ui/rangeStyle.js';
 import { normDir } from '../../ui/facing.js';
 import { skillRangeGrid } from '../../ui/rangePreview.js';
 
@@ -34,5 +35,5 @@ export function inspectRange({ target, detail, pieces, showPrep = false, field, 
     : chessLoadout(detail.chess, detail.diy ? null : loadout, getChess)?.record || detail.chess;
   // (only an operator's card has the toggle: ui/detailPanel.js CardRange)
   const grid = (skill && detail.type === 'chess' && skillRangeGrid(live, record)) || (Array.isArray(live?.range) ? live.range : attackRangeGrid(record));
-  return grid?.length ? { grid, row, col, dir } : null;
+  return grid?.length ? { grid, row, col, dir, healing: isHealingRange(record) } : null;
 }

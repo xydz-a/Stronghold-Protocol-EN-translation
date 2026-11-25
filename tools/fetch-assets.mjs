@@ -65,7 +65,7 @@ import { Downloader } from './assets/downloader.mjs';
 import { restartForEnvProxy } from './assets/env-proxy.mjs';
 import { MirrorPolicy, selectDownloadSource, validateSource } from './assets/network.mjs';
 import { normalizeProxyPrefix } from './assets/sources.mjs';
-import { loadIndexes } from './assets/cache.mjs';
+import { loadIndexes, localFxIndexPath } from './assets/cache.mjs';
 import { indexAudio, VOICE_DIRS } from './assets/audio.mjs';
 import { buildPlan, charModesFromIndex, enemyCastsFromIndex, VOICE_OPTIONAL_TREES } from './assets/plan.mjs';
 import {
@@ -78,7 +78,7 @@ import { statsTemplateJobs } from './assets/stats-template.mjs';
 import { skelParserAvailable } from './assets/skel.mjs';
 import { outfitRoster } from '../shared/outfits.js';
 import { SourceVerifier } from './assets/source-verifier.mjs';
-import { versionAssetData, presentationUnion, addManifestEntries } from './assets/versions.mjs';
+import { versionAssetData, presentationUnion, addManifestEntries, versionAudioData, seasonMusicSpec, seasonMusicFiles } from './assets/versions.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = join(ROOT, 'public', 'assets');
@@ -422,10 +422,11 @@ async function main() {
   const mirrorPolicy = new MirrorPolicy({ source, proxyPrefix, log });
   const network = { source, proxyPrefix, mirrorPolicy, verifier };
   const { audioData, modelsData, charword } = await loadIndexes(ROOT, { refresh: opts.refreshIndex && !opts.offline, offline: opts.offline, log, ...network });
-  const audio = indexAudio(audioData);
+  // Verified runs plan only from their verified index; the optional pinned local cache has no verifier ledger.
+  const audio = indexAudio(opts.sourceSnapshot ? audioData : versionAudioData(ROOT, audioData));
   // Skill attack slots follow each operator's mode list when the local fx index is on disk (#679). It is a client
   // extract (public/assets is not in git); without it the plan keeps the filename-letter fallback.
-  const fxIndexPath = join(ROOT, 'public', 'assets', 'local', 'fx', 'index.json');
+  const fxIndexPath = localFxIndexPath(ROOT);
   let charModes = null;
   let fxIndex = null;
   if (existsSync(fxIndexPath)) {
@@ -477,6 +478,7 @@ async function main() {
     // (fork) enemy skill-cast sounds: the slots of the data's enemy records, with the fx index's ability nodes and impact
     // effect keys when it is on disk (without it: the prefabKey only, no impact keys)
     enemyCasts: enemyCastsFromIndex(fxIndex, all.enemies),
+    seasonMusic: seasonMusicSpec(ROOT),
   });
   const leaves = collectLeaves(plan.template);
   log(`[plan] ${leaves.length} files + ${plan.models.size} Spine models ` +
@@ -490,6 +492,8 @@ async function main() {
     `${Object.keys(plan.template.audio.voiceNative || {}).length} with an own-language dub)`);
   const fxGaps = fxIndexGaps(charModes, Object.keys(plan.template.audio.sfx.units));
   if (fxGaps.length) log(`[fx] ${fxGaps.length} operators are not in the local fx index (${fxGaps.slice(0, 8).join(', ')}${fxGaps.length > 8 ? ', …' : ''}): their skill attack slots stay on the filename letter, so the manifest can differ. ${FX_INDEX_FILL}`);
+  const seasonFiles = seasonMusicFiles(plan.template.audio.seasons);
+  if (seasonFiles) log(`[plan] audio.seasons ${JSON.stringify(seasonFiles)}`);
   if (opts.dryRun) {
     for (const n of plan.notes) log(`  note: ${n}`);
     return 0;

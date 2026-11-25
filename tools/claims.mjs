@@ -126,6 +126,9 @@ export function branchAssumed(root, { base, head = 'HEAD' } = {}) {
       return cache.get(k)?.has(text.replace(/\r$/, '')) || false;
     });
     if (up.length) violations = violations.filter((v) => !upstreamHas(v.file, v.text));
+    // (fork) a line the base already had in another file is moved, not new (a renamed history file: 0.3.4.md → 0.4.0.md)
+    const baseHas = (text) => git(root, ['grep', '-q', '-F', '-e', text.replace(/\r$/, ''), mb.stdout.trim(), '--']).status === 0;
+    violations = violations.filter((v) => !baseHas(v.text));
   }
   return { base: ref, violations };
 }

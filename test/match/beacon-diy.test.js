@@ -27,7 +27,7 @@ const ITEM_FILES = [
   'data/versions/act2autochess-v2_1/items.json',
   'data/versions/act1autochess/items.json',
   'data/versions/act1autochess-v1_1/items.json',
-  // (fork) no act3autochess-v3_1: Season 3 content stays out until its official EN release
+  'data/versions/act3autochess-v3_1/items.json',
 ];
 
 const load = (rel) => JSON.parse(readFileSync(path.join(ROOT, rel), 'utf8'));
@@ -73,6 +73,8 @@ test('noDiy is exactly the items whose official text forbids a 自选 carrier, i
   assert.equal(def[BEACON].noDiy, true);
   assert.equal(def[GOLDEN].noDiy, true);
   assert.equal(def[HAMMER].noDiy, undefined);
+  const act3 = load('data/versions/act3autochess-v3_1/items.json');
+  assert.equal(act3['chess_item_5_02_e_a'].noDiy, true);
   assert.equal(itemForbidsDiy({ desc: '无法装备给自选干员' }), true, 'a plugin item with the sentence and no flag');
   assert.equal(itemForbidsDiy({ noDiy: true, desc: 'translated' }), true);
   assert.equal(itemForbidsDiy({ desc: '攻击力+15%' }), false);

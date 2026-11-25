@@ -52,6 +52,7 @@ test('deleting lobby media changes its selection only after storage commits', {
         const result = { abort, problems: [], screenshots: [] }; log.cases.push(result);
         const context = await browser.createBrowserContext();
         const page = await context.newPage();
+        await seedReleaseRead(page); // a returning player, no entry film over the title
         await page.setViewport({ width: 1440, height: 1000 });
         page.setDefaultTimeout(15000);
         page.on('pageerror', e => result.problems.push({ type: 'pageerror', message: e.message }));

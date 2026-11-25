@@ -9,6 +9,7 @@
 // (`ops`, synced with room.loadout); the model is ui/loadoutModel.js opsOf / setOps.
 
 import { html, MicroLabel } from '../ui/components.js';
+import { ComboBox } from '../ui/comboBox.js';
 import { data } from '../data.js';
 import { opsOf } from '../ui/loadoutModel.js';
 import { CULTIVATE_EFFECTS, POTENTIAL_MIN, POTENTIAL_MAX, POTENTIAL_DEFAULT, CULTIVATE_DEFAULT } from '../../../shared/potential.js';

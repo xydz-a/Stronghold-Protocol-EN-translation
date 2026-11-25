@@ -3,6 +3,7 @@
 import { VOICE_LANGS, sanitizeVoiceOverrides } from '../../voicePrefs.js';
 export { VOICE_LANGS } from '../../voicePrefs.js';
 
+import { BUILTIN_ID } from '../../../../shared/uiTheme.js';
 import { clamp, isObj } from './shared.js';
 import { DEFAULT_HOTKEYS, sanitizeHotkeys } from './shortcuts.js';
 
@@ -53,8 +54,10 @@ export const TEXT_SIZES = Object.freeze(['sm', 'md', 'lg', 'xl']);
  *  (fork) dynQuality: 设置「动态立绘画质」 (en: "Live2D quality"; ui/dynCards.js setDynQuality): the art pages every
  *  animated card loads — 'auto' (default: half or full by the cards' size on screen, dynCards.js cardTier), 'half',
  *  'full' (the user, 2026-11-22: "have it be auto/half/full").
+ *  uiTheme: 设置「界面主题」 (docs/THEMES.md). Empty is the built-in 卫戍协议终端. A stored id is this browser's
+ *  pack only — never sent, and it does not change a match.
  */
-export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.8, sfx: 0.8, voice: 0.8, voiceLang: 'en', voiceNative: false, voiceOverrides: Object.freeze({}), muted: false, matchAlert: true, damageNumbers: true, officialDamageNumbers: false, ammoEnergyCount: false, fullscreenWakeLock: false, bondTimers: false, prepDeployFold: false, quality: 'high', officialFx: 'auto', spriteAnim: 'auto', otherSkins: true, dynIllust: 'auto', resultArt: 'card', dynQuality: 'auto', textSize: 'sm', keys: DEFAULT_HOTKEYS });
+export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.8, sfx: 0.8, voice: 0.8, voiceLang: 'en', voiceNative: false, voiceOverrides: Object.freeze({}), muted: false, matchAlert: true, damageNumbers: true, officialDamageNumbers: false, ammoEnergyCount: false, fullscreenWakeLock: false, bondTimers: false, prepDeployFold: false, quality: 'high', officialFx: 'auto', spriteAnim: 'auto', otherSkins: true, dynIllust: 'auto', resultArt: 'card', dynQuality: 'auto', textSize: 'sm', uiTheme: '', themeMotion: true, keys: DEFAULT_HOTKEYS });
 /** (fork) The values of 设置「动态立绘」 (ui/dynCards.js DYN_ILLUST_MODES). */
 export const DYN_ILLUST_SETTING = Object.freeze(['auto', 'off', 'mine', 'all']);
 /** (fork) The values of 设置「结算卡片立绘」. */
@@ -86,8 +89,16 @@ function ammoEnergyCountOf(r) {
  * @param {any} raw
  * @returns {{ bgm: number, sfx: number, voice: number, voiceLang: 'cn'|'jp'|'en'|'kr', voiceNative: boolean, voiceOverrides: Record<string, string>, muted: boolean, matchAlert: boolean, damageNumbers: boolean, officialDamageNumbers: boolean, ammoEnergyCount: boolean, fullscreenWakeLock: boolean, bondTimers: boolean, prepDeployFold: boolean, quality: 'high'|'medium'|'low', officialFx: 'auto'|'off'|'lite'|'full', spriteAnim: 'auto'|'quality'|'unlimited', otherSkins: boolean,
  *   dynIllust: 'auto'|'off'|'mine'|'all', resultArt: 'card'|'ace', dynQuality: 'auto'|'half'|'full',
- *   textSize: 'sm'|'md'|'lg'|'xl', keys: Record<'buy'|'refresh'|'freeze'|'levelUp'|'retreat'|'sell'|'ready', string> }}
+ *   textSize: 'sm'|'md'|'lg'|'xl', uiTheme: string, themeMotion: boolean, keys: Record<'buy'|'refresh'|'freeze'|'levelUp'|'retreat'|'sell'|'ready', string> }}
  */
+const THEME_ID = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+
+/** Empty, the built-in id, or a pack id. Anything else is the built-in look. */
+function uiThemeOf(raw) {
+  if (raw == null || raw === '' || raw === BUILTIN_ID) return '';
+  return typeof raw === 'string' && THEME_ID.test(raw) ? raw : '';
+}
+
 export function sanitizeSettings(raw) {
   const r = isObj(raw) ? raw : {};
   const vol = (v, d) => (Number.isFinite(v) ? clamp(Math.round(v * 100) / 100, 0, 1) : d);
@@ -114,6 +125,9 @@ export function sanitizeSettings(raw) {
     resultArt: RESULT_ART_SETTING.includes(r.resultArt) ? r.resultArt : DEFAULT_SETTINGS.resultArt,
     dynQuality: DYN_QUALITY_SETTING.includes(r.dynQuality) ? r.dynQuality : DEFAULT_SETTINGS.dynQuality,
     textSize: TEXT_SIZES.includes(r.textSize) ? r.textSize : DEFAULT_SETTINGS.textSize,
+    uiTheme: uiThemeOf(r.uiTheme),
+    // 主题动画: the official packs' looping tweens and clips (ui/prefab); off draws them still
+    themeMotion: r.themeMotion !== false,
     keys: sanitizeHotkeys(r.keys),
   };
 }
