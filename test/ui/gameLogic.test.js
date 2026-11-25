@@ -8,12 +8,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  phaseMode, phaseBanner, isCombatPhase, isBossPhase, countdownState, phaseTotalSeconds, sortBonds, bondTier, nextThreshold,
+  phaseMode, phaseBanner, isCombatPhase, isBossPhase, countdownState, phaseTotalSeconds, pregameStepCount, pregameStepIndex, sortBonds, bondTier, nextThreshold,
   battleOverSfx, ownRoundLoss, uniteResultBox, battleResultBox, roundResultBox, RESULT_BOX_MS,
   bondMembers, memberHeadCount, bannedPerBond, priceTone, mergeProgress, shopBlockReason, deploySets, indexPieces, placementContext, canPlace,
   boardTargets, dropIntent, normalizeDraft, heldDraftPub, normalizeSp, normalizePersonalChoice, groupEnemies, factionTypes, snapHud, bossFrac, attackInterval, fmtNum,
   rangeGridBox, shortcutFor, sanitizeSettings, DEFAULT_SETTINGS, normalizeResult, cycleField, fieldLabel, homeFieldId,
-  activeBubbles, sortedPlayers, tileKey, prepCapsuleLabel, prepCamera, dropFailureReason, terrainInfo,
+  activeBubbles, sortedPlayers, tileKey, prepCapsuleLabel, prepCamera, dropFailureReason, terrainInfo, spTurnCueKey,
 } from '../../public/js/ui/gameLogic.js';
 import { PHASE, GEO } from '../../shared/constants.js';
 import { ASPD_LIMITS } from '../../public/js/ui/gameLogic/format.js';
@@ -57,6 +57,7 @@ describe('phases', () => {
     assert.equal(phaseMode(null), 'loading');
     assert.equal(phaseMode(PHASE.INFO_CHECK), 'briefing');
     assert.equal(phaseMode(PHASE.BAND_DRAFT), 'draft');
+    assert.equal(phaseMode(PHASE.CUSTOM_CHECK), 'diy');
     assert.equal(phaseMode(PHASE.BATTLE_CHECK), 'boot');
     for (const p of [PHASE.PREP, PHASE.SP_DRAFT, PHASE.ROUND_START]) assert.equal(phaseMode(p), 'prep');
     for (const p of [PHASE.COMBAT, PHASE.UNITE, PHASE.FINAL_ASSAULT, PHASE.HIDDEN_CORE]) assert.equal(phaseMode(p), 'combat');
@@ -64,13 +65,27 @@ describe('phases', () => {
     assert.equal(phaseMode(PHASE.RESULT), 'result');
     assert.equal(phaseMode('SOMETHING_NEW'), 'prep');
   });
+  test('pregame step headers follow enterSteps, and 选择自编 is 30s', () => {
+    const reg = { timers: { enterSteps: [
+      { step: 'INFO_CHECK', time: 50 }, { step: 'BAND_CHECK', time: 15 },
+      { step: 'CUSTOM_CHECK', time: 30 }, { step: 'BATTLE_CHECK', time: 5 },
+    ] } };
+    assert.equal(pregameStepCount(reg), 3);
+    assert.equal(pregameStepIndex(reg, 'INFO_CHECK'), 1);
+    assert.equal(pregameStepIndex(reg, 'BAND_DRAFT'), 2);
+    assert.equal(pregameStepIndex(reg, 'CUSTOM_CHECK'), 3);
+    assert.equal(phaseTotalSeconds({ phase: 'CUSTOM_CHECK' }, reg), 30);
+    assert.equal(pregameStepCount({}), 2);
+    assert.equal(pregameStepIndex({}, 'INFO_CHECK'), 1);
+    assert.equal(pregameStepIndex({}, 'BAND_CHECK'), 2);
+  });
   test('combat / boss predicates and banners', () => {
     assert.ok(isCombatPhase(PHASE.UNITE) && !isCombatPhase(PHASE.PREP));
     assert.ok(isBossPhase(PHASE.HIDDEN_CORE) && !isBossPhase(PHASE.COMBAT));
     assert.equal(phaseBanner(PHASE.UNITE, {}).title, '联防阶段');
     assert.equal(phaseBanner(PHASE.FINAL_ASSAULT, {}).title, '最终攻势');
     assert.equal(phaseBanner(PHASE.HIDDEN_CORE, {}).title, '隐秘核心');
-    assert.equal(phaseBanner(PHASE.COMBAT, {}).title, '作战开始');
+    for (const phase of [PHASE.PREP, PHASE.COMBAT, PHASE.SP_DRAFT]) assert.equal(phaseBanner(phase, {}), null, `${phase} is silent`);
     assert.match(phaseBanner(PHASE.ROUND_START, { round: 7 }).title, /7/);
     assert.equal(phaseBanner(PHASE.SETTLE, {}), null);
     assert.equal(prepCapsuleLabel(PHASE.PREP), '休息一下');
@@ -92,11 +107,29 @@ describe('phases', () => {
     // the title and the other phases' copy are the same for every viewer
     for (const v of [{ alive: true }, { alive: false }, { alive: false, spectator: true }]) {
       assert.equal(round(v).title, '第 2 回合');
-      assert.equal(phaseBanner(PHASE.PREP, pub, v).sub, phaseBanner(PHASE.PREP, pub).sub);
+      assert.equal(phaseBanner(PHASE.PREP, pub, v), null);
     }
     // the match screen hands the banner its viewer (screens/game.js `alive` folds a spectator seat in)
     const src = readFileSync(path.join(ROOT, 'public/js/screens/game.js'), 'utf8');
     assert.match(src, /phaseBanner\(phase, pub, \{ alive, spectator \}\)/);
+  });
+  test('shared 机变 cue identity is current-player-only, draft- and turn-specific, and stable across public refreshes', () => {
+    const pub = { phase: PHASE.SP_DRAFT, round: 4, serverNow: 1000 };
+    const sp = { family: 'supply', turnPid: 'p1', pickedCount: 0, pickOf: new Map() };
+    const cue = (p = pub, s = sp, o = {}) => spTurnCueKey(p, s, { myId: 'p1', draftToken: 3, ...o });
+    const first = cue();
+    assert.ok(first);
+    assert.equal(cue({ ...pub, serverNow: 2000 }), first, 'an unrelated public refresh does not retrigger it');
+    assert.notEqual(cue(pub, { ...sp, pickedCount: 1 }, { draftToken: 3 }), first, 'a later turn gets a distinct key');
+    assert.notEqual(cue(pub, sp, { draftToken: 4 }), first, 'a repeated draft gets a distinct key');
+    assert.notEqual(cue({ ...pub, round: 5 }), first, 'the next round gets a distinct key');
+    assert.equal(cue(pub, { ...sp, turnPid: 'p2' }), null, 'another seat is not cued');
+    assert.equal(cue(pub, { ...sp, pickOf: new Map([['p1', 0]]) }), null, 'a picked seat is not cued');
+    assert.equal(cue(pub, sp, { solo: true }), first, 'solo is cued too (decision 7, kept by the owner on 2026-11-14)');
+    assert.equal(cue(pub, sp, { alive: false }), null, 'an eliminated seat has no cue');
+    assert.equal(cue(pub, sp, { spectator: true }), null, 'a spectator has no cue');
+    assert.equal(cue(pub, sp, { personal: true }), null, 'personal 教鞭 choices have no cue');
+    assert.equal(cue({ ...pub, phase: PHASE.PREP }), null, 'leaving SP_DRAFT cancels eligibility');
   });
   // GitHub #235 (PR #112 by @Convey123): the official round result dialog and its 战斗结束 sound at SETTLE
   test('战斗结束 sound: the official BATTLEOVER_* variant for the round', () => {
@@ -359,6 +392,14 @@ describe('placement mirror (canPlace)', () => {
     const r = piece(RANGED);
     const ctx = ctxFor(privWith({ hand: [m, r] }));
     assert.equal(canPlace(ctx, m.uid, { area: 'board', row: 9, col: 3 }).ok, true);
+    const chest = privWith({ hand: [piece(MELEE)] });
+    chest.prepMapChars = [{ uid: -20, defId: 'enemy_9038_achest', x: 3, y: 9, kind: 'enemy' }];
+    const blocked = ctxFor(chest);
+    assert.equal(canPlace(blocked, chest.hand[0].uid, { area: 'board', row: 9, col: 3 }).ok, false, '模拟宝藏 occupies the tile');
+    assert.equal(canPlace(blocked, chest.hand[0].uid, { area: 'board', row: 9, col: 5 }).ok, true);
+    const medic = privWith({ hand: [piece(MELEE)] });
+    medic.prepMapChars = [{ uid: -1, defId: 'char_605_cmedic', x: 3, y: 9, kind: 'token' }];
+    assert.equal(canPlace(ctxFor(medic), medic.hand[0].uid, { area: 'board', row: 9, col: 3 }).ok, true, 'the reserve medic does not block deploy');
     assert.equal(canPlace(ctx, m.uid, { area: 'board', row: 10, col: 4 }).ok, false, 'melee on high ground');
     assert.equal(canPlace(ctx, r.uid, { area: 'board', row: 10, col: 4 }).ok, true);
     assert.equal(canPlace(ctx, r.uid, { area: 'board', row: 9, col: 3 }).ok, true, 'ranged may use melee tiles');
@@ -765,8 +806,13 @@ describe('keyboard & settings', () => {
   test('sanitizeSettings', () => {
     assert.deepEqual(sanitizeSettings(null), { ...DEFAULT_SETTINGS });
     assert.deepEqual(sanitizeSettings({ bgm: 3, sfx: -1, voice: 2, muted: 'yes', damageNumbers: false, quality: 'ultra' }),
-      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'en', voiceNative: false, voiceOverrides: {}, muted: false, matchAlert: true, damageNumbers: false, officialDamageNumbers: false, ammoEnergyCount: false, fullscreenWakeLock: false, bondTimers: false, prepDeployFold: false, quality: 'high', officialFx: 'auto', spriteAnim: 'auto', otherSkins: true, dynIllust: 'auto', resultArt: 'card', dynQuality: 'auto', textSize: 'sm', keys: { ...DEFAULT_SETTINGS.keys } },
+      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'en', voiceNative: false, voiceOverrides: {}, muted: false, matchAlert: true, damageNumbers: false, officialDamageNumbers: false, ammoEnergyCount: false, fullscreenWakeLock: false, bondTimers: false, prepDeployFold: false, quality: 'high', officialFx: 'auto', spriteAnim: 'auto', otherSkins: true, dynIllust: 'auto', resultArt: 'card', dynQuality: 'auto', textSize: 'sm', uiTheme: '', themeMotion: true, keys: { ...DEFAULT_SETTINGS.keys } },
       'a saved profile without `keys` (before 0.2.0) gets the default key map (test/ui/feedback5-hotkeys.test.js)');
+    // 主题动画 (§37.144): on by default; only `false` turns the official packs' tweens still
+    assert.equal(DEFAULT_SETTINGS.themeMotion, true);
+    assert.equal(sanitizeSettings({ bgm: 0.5 }).themeMotion, true, 'a profile saved before the switch keeps the animations');
+    assert.equal(sanitizeSettings({ themeMotion: false }).themeMotion, false);
+    assert.equal(sanitizeSettings({ themeMotion: 0 }).themeMotion, true);
     // 显示其他玩家的皮肤 (docs/SKINS.md): on by default, and off only when the profile says so
     assert.equal(DEFAULT_SETTINGS.otherSkins, true);
     assert.equal(sanitizeSettings({ bgm: 0.5 }).otherSkins, true, 'a profile saved before the switch draws other players\' skins');
@@ -793,6 +839,10 @@ describe('keyboard & settings', () => {
     for (const bad of ['native', 'JP', 'ja', 1, null]) assert.equal(sanitizeSettings({ voiceLang: bad }).voiceLang, 'en', String(bad));
     assert.equal(sanitizeSettings({ voiceLang: 'cn' }).voiceLang, 'cn');
     for (const bad of ['yes', 1, null]) assert.equal(sanitizeSettings({ voiceNative: bad }).voiceNative, false, String(bad));
+    assert.equal(sanitizeSettings(null).uiTheme, '');
+    assert.equal(sanitizeSettings({ uiTheme: 'iron-fan' }).uiTheme, 'iron-fan');
+    assert.equal(sanitizeSettings({ uiTheme: 'terminal' }).uiTheme, '', 'the built-in id is stored as empty');
+    assert.equal(sanitizeSettings({ uiTheme: '../x' }).uiTheme, '');
     assert.equal(sanitizeSettings({ bgm: 0.333 }).bgm, 0.33);
     assert.equal(sanitizeSettings({ quality: 'low' }).quality, 'low');
   });

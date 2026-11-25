@@ -2,10 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { bankPool, indexAudio } from '../tools/assets/audio.mjs';
 import { buildPlan } from '../tools/assets/plan.mjs';
 import { resolveTemplate, collectLeaves } from '../tools/assets/manifest.mjs';
 import { poolSnapshot, diffSnapshots, snapshotTotals } from '../tools/assets/pool-snapshot.mjs';
+import { versionAudioData } from '../tools/assets/versions.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('../data/assets.json', import.meta.url), 'utf8'));
 const official = new URL('../.cache/gamedata/excel/audio_data.json', import.meta.url);
@@ -114,7 +116,7 @@ test('every generated attack/hit reference resolves to a valid pool and its sele
 });
 
 test('all exported pools match the cached official bank limits, pitches and delays', { skip: !existsSync(official) }, () => {
-  const raw = JSON.parse(readFileSync(official, 'utf8'));
+  const raw = versionAudioData(fileURLToPath(new URL('..', import.meta.url)), JSON.parse(readFileSync(official, 'utf8')));
   const banks = new Map(raw.soundFXBanks.map(b => [b.name, b]));
   for (const [id, pool] of Object.entries(manifest.audio.sfx.pools)) {
     const bank = banks.get(id);

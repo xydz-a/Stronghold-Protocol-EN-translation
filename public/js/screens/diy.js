@@ -1,5 +1,7 @@
 // 自选编队 (0.2.0 DIY; research 0.2.0 §2, the owner's decisions of 2026-10-05), in the 干员调配 overlay
-// (screens/loadout.js). Four slots — 5阶 ×2, 6阶 ×2 — each filled with an operator: a 6★ the player owns outside the
+// (screens/loadout.js). The 盟约 roster is four slots — 5阶 ×2, 6阶 ×2. 规程·序列Ⅰ lists six slots at each tier and,
+// when config.diyBringLimits is present, the match brings at most that many from each tier (选择自编). Each slot is
+// filled with an operator: a 6★ the player owns outside the
 // chess pool (any of its three skills, any module of its elite form but a 集成战略 one) or a prototype (原型干员, its skill
 // and module locked as when it stands in). Only operators with a kit are listed (the server's welcome.diyKitted). The
 // slot picker lists the legal picks of the slot's tier — avatar, name, class, the bonds derived from its factions, a

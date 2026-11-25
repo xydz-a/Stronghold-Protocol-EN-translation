@@ -14,6 +14,8 @@
               &lang=en|ja|… (the interface language; without it the Chinese source)
   RESULT also fills the damage log, so the result screen's match damage chart shows.
   RESULT&variant=alt-art (fork): the alternate result background (server/match/results.js altArtResult).
+              &version=regulation|act3autochess@V3_1 (swap config + stages for 规程, so INFO_CHECK uses that briefing;
+                  &stage=act3autochess_m01 is then a real 规程 board. Default stage stays act2 without this.)
   Keyboard: ` toggles the switcher.
 -->
 <html lang="zh-CN">
@@ -30,14 +32,17 @@
   <link rel="stylesheet" href="/css/screens/protocol-boot.css" />
   <link rel="stylesheet" href="/css/screens/boss-plates.css" />
   <link rel="stylesheet" href="/css/screens/game-shop.css" />
+  <link rel="stylesheet" href="/css/screens/game-reghud.css" />
   <link rel="stylesheet" href="/css/screens/game-panels.css" />
   <link rel="stylesheet" href="/css/screens/briefing.css" />
+  <link rel="stylesheet" href="/css/screens/diy-check.css" />
   <link rel="stylesheet" href="/css/screens/draft.css" />
   <link rel="stylesheet" href="/css/screens/result.css" />
   <link rel="stylesheet" href="/css/screens/settle.css" />
   <link rel="stylesheet" href="/css/screens/guide.css" />
   <link rel="stylesheet" href="/css/emotes.css" />
   <link rel="stylesheet" href="/css/devices.css" />
+  <link rel="stylesheet" href="/css/ui-theme.css" />
   <script type="importmap">
     { "imports": { "preact": "/vendor/preact.module.js", "preact/hooks": "/vendor/hooks.module.js", "htm": "/vendor/htm.module.js" } }
   </script>

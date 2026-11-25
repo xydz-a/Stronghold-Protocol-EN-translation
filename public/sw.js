@@ -36,6 +36,10 @@ self.addEventListener('message', (event) => { if (event.data === 'sp-resources-c
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
+  // A cache-only probe (resourceCheck.js) must reach the browser HTTP cache. respondWith, even with 504, hides
+  // that cache. Leaving the event unanswered lets a hit return and a miss reject, with no network. Cache Storage
+  // is already decided by the page's caches.match before this probe.
+  if (request.cache === 'only-if-cached') return;
   // (fork) not an imported file's URL: the preload's rules (they leave alone what is not theirs)
   if (request.method !== 'GET' || request.headers.has('range') || !importedPath(request.url)) {
     self.spResources?.handleFetch(event);

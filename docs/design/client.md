@@ -4,6 +4,35 @@ Part of [DESIGN.md](../DESIGN.md) (the index; section numbers are global).
 
 ## 9. Client rendering contract (public/js/render)
 
+Normal healing ranges use cyan-blue battlefield highlights; damaging ranges keep orange. Placement previews and
+inspected operators / healing summons resolve the same loadout record (dmgType heal or attackKind heal).
+The solid fill, Pixi stripes and SVG stripes share that choice, preserving highlight groups and orientation.
+This does not recolour the card mini-map or infer a healing range from profession, incidental healing, regen, or skill
+text. Special skills that change the displayed ability need separate verified display metadata. Colour families follow
+[PRTS combat mechanics](https://prts.wiki/w/%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6#%E6%94%BB%E5%87%BB%E8%8C%83%E5%9B%B4);
+the exact RGB values are this UI's palette, not extracted official constants.
+
+**Match transition cues.** A round start has one `RoundPopup` (round, income and spectator state). Entering rest,
+ordinary combat or an Improv draft adds no central phase banner; the top bar still identifies the phase. A shared
+draft reaching the viewer's unpicked turn plays one `轮到你选` cue and its sound — in solo simulation too (decision 7
+of 2026-10-22, kept on 2026-11-14, history §37.225). Spectators and personal 教鞭 choices do not play that cue. `screens/game.js` owns the cue, using the installed theme's
+existing banner or the default disc, never both; the choice overlay keeps its persistent turn status and countdown.
+A queued or visible cue expires when that turn ends, its card is picked or the phase changes, and loading theme art
+does not replay a consumed turn. The round plate may finish before the cue; it never causes a second round plate.
+Source: player report and confirmed acceptance criteria, 2026-11-14; no gameplay or simulation changes.
+
+Match-information bond entries (#915, history §37.98) open the existing `BondPopup` directly: the in-game chips,
+briefing discs and strategy information discs share its effects, member list and ban marks. `MatchBondDialog` shares
+Modal's focus stack; Escape or its backdrop closes the card alone and restores its trigger. A strategy-turn change
+or leaving preparation also removes it. In-game ownership, live layers, morph rules and member skins use the existing
+view data; opening a member closes the information overlays before showing its operator card. Before combat the
+member grid is informational. Mode activation bans and drawn incomplete lineups keep their existing distinct meanings.
+On 规程, when the owner's bond entry carries `effectId`, the popup and the strip tier read that effect
+(`effectDescParams`, `displayThresholds`, `params`) instead of the bond's own effect. The effects column shows the
+current command line, each replacement the battle uses, and a retained opening passive when that buff is still the
+opening band's. A zero-count mapped row is popup data only; the strip does not draw it. A mode-off bond stays the
+grey disc and does not take the replacement text.
+
 **Operator skins (§34.23, [SKINS.md](../SKINS.md)).** [ASSUMED] Retain received skin IDs separately from displayed
 skins so the other-player switch restores loaded units when re-enabled, including boss prep partners. Any-phase
 `room.skins` refreshes owner/private and existing scout views; public seat choices update current battle rendering
@@ -764,7 +793,8 @@ The owner's `prepMapChars` (外勤医疗's 预备干员-医疗, or another displ
 preparation views: tapping one opens its existing operator-style detail card and highlights its attack range from
 its board-space position and facing, including on a mirrored boss half. They cannot be dragged, sold or retreated
 from this preview. The inspection affordance does not make the preview a combat unit; the battle sim still creates
-the selected variant at battle start (§30.22).
+the selected variant at battle start (§30.22). A standing “模拟宝藏” (`enemy_9038_achest`) is the same kind of
+read-only prep unit, in board coordinates, and that tile is not a legal deploy target.
 (fork) An operator card whose selected skill changes the attack range has 普通 / 技能 buttons under its 攻击范围
 title (`ui/rangePreview.js`, pref `rangePreview`, kept across cards): on 技能, the mini-map and the field overlay show the
 range while the skill runs. The box is sized for the larger of the two maps, so nothing moves on a switch. Battle cards and the dev sandbox read the sim's `unitStatsEntry.skillRange`
@@ -779,8 +809,8 @@ Audio: autochess BGM per phase, UI SFX (buy/sell/refresh/level/merge/ready/timer
 
 ## 13. Local-client art (optional, host-side)
 
-Title-screen asset download (downstream request, 2026-10-14, PR #628): **下载完整素材** explicitly predownloads the server's
-manifest-listed models, textures, audio and optional local art — in a secure context into the import's Cache Storage
+Title-screen asset download (downstream request, 2026-10-14, PR #628): **下载资源管理 → 下载素材** explicitly predownloads the server's
+manifest-listed models, textures, selected dubs, other audio and optional local art — in a secure context into the import's Cache Storage
 (served by `public/sw.js`, counted ready by later checks; GitHub #725: the HTTP cache is too small for a whole art set),
 else into the browser's HTTP cache, with a note that a reload may download again. Show file progress,
 bytes read, pause/resume and failed-file retry. Do not mark completion until every listed response is fully read;
@@ -886,7 +916,7 @@ sliding, so a block — which freezes velocity — still turns it with the front
 ### Local preferences and recovery (§28.14, §28.18–20)
 
 Room seat cards isolate their internal layers so remove-player / AI buttons remain below the top-bar settings
-dialog and its backdrop, including after entry animations finish (#888, [0.3.4](../history/0.3.4.md)).
+dialog and its backdrop, including after entry animations finish (#888, [0.4.0](../history/0.4.0.md)).
 
 Settings persist `textSize` (sm/md/lg/xl; default sm), `voiceLang` (cn/jp/en/kr; (fork) default en), `voiceNative` (the
 本土语言 switch; default false), `voiceOverrides` (charId → cn/jp/en/kr/native; default empty), `prepDeployFold`
@@ -902,9 +932,12 @@ speaks (`voicePrefs.js voiceLangFor`): its own choice when this server has it, t
 switch is on and the operator has one, then the global preference, then (fork) Japanese, then Chinese. A missing line
 falls back to the Chinese file of the same name. (fork) Changing the global language or the 本土语言 switch clears the
 per-operator choices. Overrides are local listening preferences, absent from room loadouts and their exports.
+(fork) Upstream's 下载资源管理 → 干员语音 download selection (`voiceDownloads.js`, `sp.pref.voiceDownloads`) is in the
+tree but has no entry on this fork's title screen (the fork's 预载资源 preload downloads instead); with no stored
+selection it keeps the Chinese fallback.
 
 The selected-piece underframe uses fixed viewport positioning, matching `tileScreen` client coordinates; screen-fit
-insets must not be added again by the HUD containing block (#889, [0.3.4](../history/0.3.4.md)).
+insets must not be added again by the HUD containing block (#889, [0.4.0](../history/0.4.0.md)).
 
 异形屏适配 (`ui/screenFit.js`) persists `sp.pref.screenFit` — four whole pixel offsets `{ l, r, t, b }` in ±100 (inward
 positive; the settings show each as a 0–100 slider, 50 = 0, 2 px a step) — on this device only. While any offset is
@@ -1301,10 +1334,12 @@ not timed; while that version's data is not on screen the briefing omits the tim
 version pill beside the difficulty and ⚙'s 版本 row open the picker in room mode. The compact pill may abbreviate its
 visible name with an ellipsis (the existing `versions-fit` policy, now covered on default servers too, §35.23.12);
 its accessible name and the picker's version names stay complete, and its control stays inside the footer and reachable.
+Gameplay plugins must declare the target official version in `versions` (absent means act2autochess); the server checks
+the full dependency list before a proposal. Their panel switches follow the same declaration and explain unsupported
+versions. A composed set retains the official version for page data and art lookups and displays the unofficial mark.
 The host's pick
 sends `room.proposeVersion` (a RATE right after a switch — every page resends its settings, which share the server's
-heavy-message budget — is tried once more after 1.2 s [ASSUMED]); off during a vote, with gameplay plugins (「请先关闭改变
-玩法的插件」) and offline; read-only for everybody else. `ui/versionVote.js` (modelled on `ui/setupReroll.js`): the
+heavy-message budget — is tried once more after 1.2 s [ASSUMED]); off during a vote and offline; read-only for everybody else. `ui/versionVote.js` (modelled on `ui/setupReroll.js`): the
 strip between the 观战席 and the footer — title with agreed / voters, a countdown anchored at receipt from
 `remainingMs`, the voters' chips, 同意切换 / 拒绝切换 for a voter who has not agreed, 取消投票 for the host, one request at a
 time; on a short screen it floats over the seats. The settlement screen shows the same strip (`vervote--float`), so a
@@ -1609,7 +1644,7 @@ is presentation inferred from the available animation roles; simulation facing a
 release and its predecessors. Upstream's automatic opening after an update is left out: this fork's lobby has its own update
 banner (ui/matchSearch.js UpdateNews). A Chinese page reads `/CHANGELOG.md`, any other its English translation
 `/CHANGELOG.en.md`; both are revalidated, including after update overlays, and only those two root documents are served.
-Text-only Markdown supports headings, lists, code, emphasis and safe links. Revision: [§37.1](../history/0.3.4.md).
+Text-only Markdown supports headings, lists, code, emphasis and safe links. Revision: [§37.1](../history/0.4.0.md).
 
 ### COST / SP receipts (#657)
 
@@ -1618,7 +1653,7 @@ switch. Official mode permits agent skill/charger kill COST gains and actual mer
 permits pioneer skill gains ([ASSUMED] scope approved in #657). SP permits extra bond/talent/skill recovery only,
 excluding time, ordinary attack/hurt and initial SP. Full/locked bars and zero receipts show nothing. White COST,
 red deductions and cyan SP follow the issue examples; exact colours, 80% numeric size, centred placement, 0.9 s
-lifetime and up to two decimals are [ASSUMED]. Receipts do not merge. Revision: [§37.3](../history/0.3.4.md).
+lifetime and up to two decimals are [ASSUMED]. Receipts do not merge. Revision: [§37.3](../history/0.4.0.md).
 
 ### Preparation progress displays (§37.13)
 
@@ -1635,4 +1670,34 @@ manifest replacement. Downloads/catalogue entries use the 512 MB outer cap until
 
 ### Summon outfits (§37.18)
 
-召唤物时装沿用主人干员的公开选择，自选主人显式使用所选干员 `charId`；备战、手牌、临时整备、侦察与战斗一致，缺失资源回退默认模型。来源、显示层边界和插件格式见 [SKINS.md](../SKINS.md) 与 [0.3.4 §37.18](../history/0.3.4.md)。
+召唤物时装沿用主人干员的公开选择，自选主人显式使用所选干员 `charId`；备战、手牌、临时整备、侦察与战斗一致，缺失资源回退默认模型。来源、显示层边界和插件格式见 [SKINS.md](../SKINS.md) 与 [0.4.0 §37.18](../history/0.4.0.md)。
+
+### Regulation equipment row
+
+The loaded `config.version.rules.equipHand` switch labels row 8 装备区 and accepts item-card moves within its five
+slots. Equipment can be dropped on a unit to equip it; empty character-hand slots refuse equipment, and equipment
+slots refuse characters/summons. The shop checks capacity in the offered card's row. The permanent row has no red
+pending frame. The HUD, Ready reason and row label use private `stashCount`, with the auto-refill/expiry rule;
+the stash itself is not drawn. Boss prep retains the same bench transform (row 8 → boss row 1, mirrored on the right).
+Covenant rendering and controls retain the mixed hand and visible temporary row.
+
+The centralized voice picker shows one operator per table row: name, independent checkboxes for available dubs, and a preview button. Column headers remain visible while scrolling; narrow screens can scroll horizontally.
+
+下载资源管理 is the single title-screen entry for voice download selection (first and initially active), download, local import and completeness checking. Opening the manager or a section starts no transfer; downloading needs its explicit action. Switching sections unmounts the old panel and pauses downloads or cancels imports without deleting stored bytes. The common dialog owns closing and focus trapping.
+
+检查资源 requires all non-voice manifest resources and one complete manifest-listed dub per voiced charId,
+regardless of download selections. Unvoiced operators are exempt. A status-200 import-cache or HTTP-cache entry
+counts when its content-type is not HTML and `Content-Length` is not zero, without reading the body. The worker
+does not answer `cache: 'only-if-cached'`, so the HTTP cache can, and missing art is never fetched. A partial dub
+or an unverifiable file cannot satisfy a requirement. Only manifests may use the network. Results include missing
+files and operators; cancellation or invalid manifests cannot report completeness. `public/js/resourceCheck.js`
+exposes the checker and pure planning/summary functions for downstream deployments. 下载素材 uses the multi-language
+selections from 干员语音.
+
+### Complete equipment HUD
+
+Prep unit equipment icons show every actually carried item, including zero-slot equipment, without drawing empty
+capacity. Icons retain their existing size; rows have at most three items, centred independently and balanced:
+four uses 2+2, five 3+2, six 3+3, with additional rows when needed. The bottom edge remains fixed and extra rows grow
+upward. Progress text clears the bottom row even at minimum icon size. [ASSUMED, presentation] This balanced layout
+is a remake UI choice, not a claim about official-game spacing. No equipment capacity or simulation rule changes.

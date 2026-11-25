@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { APP_VERSION } from '../../shared/constants.js';
+import { skipEntryFilm } from '../helpers/releaseNotes.js';
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 // (fork) no automatic opening: only the title footer's button opens the notes (ui/releaseNotes.js)
@@ -14,6 +15,7 @@ test('release notes: never open on their own, the button opens them with history
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--mute-audio', '--no-sandbox', '--no-proxy-server'] });
   try {
     const page = await browser.newPage();
+    await skipEntryFilm(page); // the notes are this suite's first-run prompt, not the film over the title
     const base = `http://127.0.0.1:${srv.port}`;
     for (const doc of ['CHANGELOG.md', 'CHANGELOG.en.md']) {
       const response = await page.goto(`${base}/${doc}?v=old`);

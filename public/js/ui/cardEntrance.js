@@ -21,7 +21,13 @@
 // This module imports nothing of the page (no DOM, no data store, no hooks): the room cards' dissolve Worker
 // (ui/dissolveWorker.js) loads it too. The entrance's hook is ui/cardEntranceHook.js.
 
-import { uiUrl } from './assetUrls.js';
+// ui/assetUrls.js's uiUrl, kept here: assetUrls.js imports data.js since upstream's 0.4.0 (its local-client fallbacks),
+// which a Worker cannot load
+const uiUrl = (m, key) => {
+  const ui = m && typeof m === 'object' && m.ui && typeof m.ui === 'object' ? m.ui : null;
+  const v = ui?.[key];
+  return typeof v === 'string' && v ? v : null;
+};
 
 /** The card's delay step: index × this before its clip plays. [src: official auto_chess_settle_game_player_item _animDelay] */
 export const ANIM_DELAY_S = 0.083;

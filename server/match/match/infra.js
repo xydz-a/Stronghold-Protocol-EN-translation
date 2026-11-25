@@ -94,6 +94,11 @@ export class MatchInfra {
   /** The strategy that plays a bot-controlled seat: its SP_BOT_STRATEGY_SEATS override, else the match's (#816 P1). */
   botFor(ps) { return this.seatBots[ps.seat] ?? this.bot; }
 
+  /** All acquisition paths share the regulation ban, including named rewards and grants outside the pool. */
+  chessExcluded(rec) {
+    return this.gd.regulationBondDraw && this.gd.bondsExclude(rec, new Set([...this.disabledBonds, ...this.staticInactiveBonds]));
+  }
+
   /** Whether any chess of a bond is in this match's pool (a 驰援 card of a fully banned bond is never offered). */
   bondInPool(bondId) {
     for (const id of this.pool.entries.keys()) {
@@ -110,6 +115,15 @@ export class MatchInfra {
    */
   bondLive(bondId) {
     return !this.gd.modeInactiveBonds.has(bondId) && this.bondInPool(bondId);
+  }
+
+  /**
+   * Whether a bot should build towards a bond: live, and in regulation not a core bond the draw greyed. A grey core keeps
+   * only the operators that also belong to another lit core bond (gamedata bondsExclude, core first — §37.211);
+   * bots plan as when it had none.
+   */
+  bondPlayable(bondId) {
+    return this.bondLive(bondId) && !(this.gd.regulationBondDraw && this.gd.bond(bondId)?.isCore && this.disabledBonds.includes(bondId));
   }
   humans() { return this.order.filter((p) => !p.isBot && !p.left); }
 

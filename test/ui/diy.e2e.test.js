@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Client, ROOT, sleep, hasChrome, startRealServer, problemsOf } from '../e2e/client.mjs';
+import { DEFAULT_VERSION } from '../../shared/versions.js';
 
 const UI_ENABLED = process.env.SP_E2E === '1' && hasChrome();
 const ENABLED = UI_ENABLED && existsSync(path.join(ROOT, 'public/assets'));
@@ -88,7 +89,7 @@ describe('自选编队 picker: reselecting retains the draft (real server, no ar
     test(`${slot}: same operator retains skill/module edits; cancel, confirm and reload keep their semantics`, { timeout: 90000 }, async () => {
       const srv = await startRealServer();
       const P = (await import('puppeteer-core')).default;
-      const c = new Client(P, srv.base, 'diy-reselect', { prefix: `diy-reselect-${slot}`, w: 1280, h: 720 });
+      const c = new Client(P, srv.base, 'diy-reselect', { lobbyVersion: DEFAULT_VERSION, prefix: `diy-reselect-${slot}`, w: 1280, h: 720 });
       const picker = '[data-testid="diy-picker"]';
       const operator = `${picker} .diy-opt[data-char="${SIEGE}"]`;
       const saved = () => c.page.evaluate((id) => JSON.parse(localStorage.getItem('sp.pref.diy') || 'null')?.picks?.[id] ?? null, slot);
@@ -173,7 +174,7 @@ describe('自选编队 picker: Esc closes only the picker (real server, no art n
   test('5阶 / 6阶 slots: Esc cancels the picker, the overlay stays; a second Esc closes the overlay', { timeout: 90000 }, async () => {
     const srv = await startRealServer();
     const P = (await import('puppeteer-core')).default;
-    const c = new Client(P, srv.base, 'diy-esc', { prefix: 'diy-esc' });
+    const c = new Client(P, srv.base, 'diy-esc', { lobbyVersion: DEFAULT_VERSION, prefix: 'diy-esc' });
     const picker = '[data-testid="diy-picker"]';
     const saved = () => c.page.evaluate(() => localStorage.getItem('sp.pref.diy'));
     try {
@@ -223,7 +224,7 @@ describe('0.2.0 自选编队 — a slotted operator in the own shop and battle (
   test('自选编队: slot 推进之王 → level-5 shop card (自选) → buy → deploy → the local battle fields 推进之王', { timeout: 6 * 60 * 1000 }, async () => {
     const srv = await startRealServer({ fast: { timerScale: 0.5, combatSpeed: 2, startRound: 1, kit: 0, level: 5, shop: [SLOT] } });
     const P = (await import('puppeteer-core')).default;
-    const c = new Client(P, srv.base, 'diy', { prefix: 'diy' });
+    const c = new Client(P, srv.base, 'diy', { lobbyVersion: DEFAULT_VERSION, prefix: 'diy' });
     try {
       await c.open();
       await c.enter('自选');
@@ -245,8 +246,10 @@ describe('0.2.0 自选编队 — a slotted operator in the own shop and battle (
       await c.shot('picker');
       await c.click('[data-testid="diy-confirm"]');
       await c.page.waitForFunction((slot, id) => document.querySelector(`.lo-op--diy[data-slot="${slot}"]`)?.dataset.char === id, { timeout: 4000 }, SLOT, SIEGE);
-      // synced with the server (the picker page's 已同步 chip closed with it: the store says it)
-      await c.page.waitForFunction(async () => (await import('/js/ui/loadoutSync.js')).loadoutStore.get().diySync === 'synced', { timeout: 8000 });
+      // Outside a room the server checks settings against its own default version (规程 since 2026-11-09), so on
+      // 第二期下半 the picks are sent when the room is entered (loadoutSync.js canSendSettings): no 'synced' here, only no
+      // send in flight, and the match's m.private.diy below is the proof that they arrived.
+      await c.page.waitForFunction(async () => !['pending', 'sending'].includes((await import('/js/ui/loadoutSync.js')).loadoutStore.get().diySync), { timeout: 8000 });
       // the slot card shows the pick: the operator and 已持有 (its skill and module as icons; the stored pick below)
       const card = await c.page.evaluate((slot) => document.querySelector(`.lo-op--diy[data-slot="${slot}"]`)?.textContent || '', SLOT);
       assert.ok(card.includes('推进之王') && card.includes('已持有'), card);

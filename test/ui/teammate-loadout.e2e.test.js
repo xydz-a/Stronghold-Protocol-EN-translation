@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Client, ROOT, sleep, hasChrome, startRealServer, problemsOf } from '../e2e/client.mjs';
+import { cultivateMul, CULTIVATE_DEFAULT } from '../../shared/potential.js';
 
 const ENABLED = process.env.SP_E2E === '1' && hasChrome() && existsSync(path.join(ROOT, 'public/assets'));
 const BASE = 'chess_char_1_19_a';
@@ -147,10 +148,10 @@ describe('DESIGN §16 — a teammate\'s unit shows its owner\'s loadout (real se
       assert.ok(card.skill.includes(s1.name) && card.tag, `teammate card: ${s1.name} 已调配 (${JSON.stringify(card)})`);
       assert.ok(!card.skill.includes(sDef.name), 'not the default skill');
       assert.ok(card.none && card.module.includes('未装备模组'), `teammate card: 未装备模组 (${JSON.stringify(card)})`);
-      // the card's base reads the operator's own numbers with its 练度 (the guest's default 精英2 Lv.60, aceffect_char_4 ×1.1;
-      // shared/protocol.js unitStatsEntry, DESIGN §27.60), as loadout-battle's detail card
-      const t4 = JSON.parse(readFileSync(path.join(ROOT, 'data/effects.json'), 'utf8')).aceffect_char_4.buffs.find((b) => b.key === 'char_attribute_mul').bb;
-      assert.equal(card.stats['攻击'], String(Math.round(rec.statsBase.atk * t4.atk)), `teammate card ATK without the module, at the default 练度 (${JSON.stringify(card.stats)})`);
+      // the card reads the unit's own numbers: the 练度 multiplier on (0.2.2: the default 精英阶段2-60级, shared/potential.js)
+      const mul = cultivateMul(JSON.parse(readFileSync(path.join(ROOT, 'data/effects.json'), 'utf8')), CULTIVATE_DEFAULT);
+      assert.ok(mul, 'the default 练度 has its multipliers');
+      assert.equal(card.stats['攻击'], String(Math.round(rec.statsBase.atk * mul.atk)), `teammate card ATK without the module (${JSON.stringify(card.stats)})`);
       assert.deepEqual(problemsOf([host, guest]), []);
     } finally {
       for (const c of [host, guest]) if (c.problems.length) console.log(c.label, c.problems.slice(0, 20).join('\n'));

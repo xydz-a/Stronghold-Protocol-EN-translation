@@ -33,6 +33,8 @@
 //   --dict      a community dictionary { "<Chinese data text>": "<translation>" } (a language without an official
 //               client: the only source besides the pack's UI file; with a client: tried after it). Matching is exact
 //               (a text with its numbers resolved needs its own entry); the rest falls back per text at run time.
+//               (fork) Without --dict, a version directory's tools/i18n/dict-<lang>.<slug>.json is used when it exists
+//               (规程·序列Ⅰ: no official EN client carries it; keys starting with "_" are notes).
 //   --source    tables of the language: 'assets' (default) = ArknightsAssets/ArknightsGamedata (en / jp / kr / tw;
 //               current, has the 盟约 seasons act1autochess / act2autochess); for en also 'yostar' =
 //               Kengxxiao/ArknightsGameData_YoStar en_US (archived in 2025-11: no 盟约 season, only the 2025 test event
@@ -796,11 +798,15 @@ async function main() {
     remake: await readDict(join(ROOT, 'tools', 'i18n', `fallback-remake.${opts.lang}.json`)),
     ui: await readDict(join(ROOT, 'public', 'i18n', `${opts.lang}.json`)),
   };
-  if (opts.dict) fallback.dict = JSON.parse(await readFile(opts.dict, 'utf8'));
   // corrections of the language's own official texts (none for a language without a file)
   // (fork) + a version's own tools/i18n/corrections-<lang>.<slug>.json (--data data/versions/<slug>), which wins: the
   // same Chinese text can carry another number in another season (华法琳's granted garrison_95_b: 14 / 24 / 20 stacks)
   const slug = dirname(opts.data) === join(ROOT, 'data', 'versions') ? basename(opts.data) : null;
+  // (fork) a season no official client of the language carries (规程·序列Ⅰ, CN only) keeps its community dictionary in
+  // tools/i18n/dict-<lang>.<slug>.json, used like --dict (after the official texts and the fallbacks) when --dict is not given
+  const seasonDict = slug && !opts.dict ? join(ROOT, 'tools', 'i18n', `dict-${opts.lang}.${slug}.json`) : null;
+  if (opts.dict) fallback.dict = JSON.parse(await readFile(opts.dict, 'utf8'));
+  else if (seasonDict && existsSync(seasonDict)) fallback.dict = Object.fromEntries(Object.entries(await readDict(seasonDict)).filter(([k]) => !k.startsWith('_')));
   const corrections = {
     ...await readDict(join(ROOT, 'tools', 'i18n', `corrections-${opts.lang}.json`)),
     ...(slug ? await readDict(join(ROOT, 'tools', 'i18n', `corrections-${opts.lang}.${slug}.json`)) : {}),
