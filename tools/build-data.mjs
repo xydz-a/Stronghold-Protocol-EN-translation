@@ -3913,7 +3913,8 @@ async function main() {
   const termDict = { ...(await loadGamedata('excel/gamedata_const.json'))?.termDescriptionDict };
   if (PROFILE.pins?.character && PROFILE.pins.character !== PROFILE.pins.default) {
     const sha = PROFILE.pins.character;
-    const abs = await ensureGamedata('excel/gamedata_const.json', { cacheDir: `${CACHE_DIR}@${sha}`, baseUrl: pinnedUrl(sha) });
+    const src = sourceOfProfile(PROFILE);
+    const abs = await ensureGamedata('excel/gamedata_const.json', { cacheDir: `${CACHE_DIR}@${src.cacheTag(sha)}`, baseUrl: src.url(sha) });
     for (const [id, e] of Object.entries(JSON.parse(await readFile(abs, 'utf8'))?.termDescriptionDict || {})) if (!termDict[id]) termDict[id] = e;
   }
   files.terms = buildTerms(termDict, files);

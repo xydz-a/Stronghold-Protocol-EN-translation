@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bgmKeyFor, resolveBgm, playbackBgmKey, SfxLimiter, AudioManager, normalAttackSfx, installAudio, audio, combatTrackFor, COMBAT_TRACK_SWITCH_ROUND, VoiceGate, resultSpeaker, resultVoiceSlot, VOICE_PRIORITY, VOICE_COOLDOWN_MS, voiceLine, VOICE_TREES, LOCAL_BGM } from '../../public/js/audio.js';
+import { bgmKeyFor, resolveBgm, playbackBgmKey, SfxLimiter, AudioManager, normalAttackSfx, installAudio, audio, combatTrackFor, COMBAT_TRACK_SWITCH_ROUND, VoiceGate, resultSpeaker, resultVoiceSlot, VOICE_PRIORITY, VOICE_COOLDOWN_MS, voiceLangsOf, effectiveVoiceLang, voiceLine, VOICE_TREES, LOCAL_BGM, POP_FADE_S, HELD_ATTACK_LAYERS } from '../../public/js/audio.js';
 import { musicSeason } from '../../public/js/versions.js';
 import { selectRoute } from '../../public/js/store.js';
 import { mediaUrl } from '../../public/js/media.js';

@@ -22,7 +22,6 @@ import { fileURLToPath } from 'node:url';
 import { Client, sleep, startRealServer, hasChrome, OUT } from '../e2e/client.mjs';
 import { seedReleaseRead } from '../helpers/releaseNotes.js';
 import { buildRecord, buildQuitRecord, createLiveMatch, observeMatch, STATS_VERSION } from '../../public/js/ui/stats.js';
-import { seedReleaseRead } from '../helpers/releaseNotes.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ENABLED = process.env.SP_E2E === '1' && hasChrome();
