@@ -1380,6 +1380,10 @@ button.ally-card:disabled .ally-card__bar { filter: grayscale(.5) brightness(.8)
 .rbr-card.is-ofa { border-color: rgba(242, 193, 78, .4); }
 .rbr__intro--ofa { color: #f2c14e; font-weight: 600; }
 .rbr-card__diff { display: flex; align-items: center; gap: .06rem; min-width: 0; font-size: calc(.15 * var(--t)); color: #b9c2bf; }
+/* (fork) the official version a room plays, when not the default (Grand Alliance on every version since 2026-11-25) */
+.rbr-card__ver { display: inline-flex; align-items: center; gap: .04rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #8fc6ff; font-size: calc(.13 * var(--t)); }
+.rbr-card__ver .icon { flex: none; width: 1em; height: 1em; }
 /* (fork) the server a room is on and its ping (ui/largeRooms.js RegionTag); the page's own server in the accent colour */
 .rbr-card__region { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: .05rem; padding: .01rem .07rem;
   font-size: calc(.13 * var(--t)); color: #c9d2cf; border: 1px solid rgba(255, 255, 255, .18); white-space: nowrap; }

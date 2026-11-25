@@ -14,6 +14,7 @@ import { html, Button, Icon, Spinner, DifficultyIcon, promptDialog } from './com
 import { net, regions } from '../net.js';
 import { useStore } from '../store.js';
 import { regionLabel } from './regionNames.js';
+import { versionLabel } from '../versions.js';
 import { t, N_ } from '../../../shared/i18n.js';
 
 /** A ping test of every server while the browser is open, this often (the server picker's pace, ui/regionPicker.js). */
@@ -29,6 +30,8 @@ export function roomRows(msg) {
       squads: Array.isArray(r.squads) && r.squads.length === 2 ? r.squads.map((n) => (Number.isInteger(n) ? n : 0)) : [r.seats, 0],
       locked: r.locked === true,
       oneForAll: r.oneForAll === true,
+      // (fork) the official version it plays (absent: the default one)
+      version: typeof r.version === 'string' && /^[A-Za-z0-9_@.-]{1,64}$/.test(r.version) ? r.version : null,
       // (fork) the server the room is on (server/regions.js id); null without regions
       region: typeof r.region === 'string' && REGION_ID_RE.test(r.region) ? r.region : null,
     }));
@@ -207,6 +210,7 @@ export function RoomBrowser({ onClose, onCreate, onJoin, busy, online }) {
                 ${r.locked ? html`<span class="rbr-card__lock" title=${t('私密')}><${Icon} name="lock" />${t('私密')}</span>` : null}</span>
             </div>
             <div class="rbr-card__diff"><${DifficultyIcon} difficulty=${r.difficulty} />${DIFFICULTY_NAMES[r.difficulty] ? t(DIFFICULTY_NAMES[r.difficulty]) : ''}
+              ${r.version ? html`<span class="rbr-card__ver" data-testid="room-version"><${Icon} name="book" />${versionLabel(r.version)}</span>` : null}
               ${multi && r.region ? html`<${RegionTag} id=${r.region} here=${r.region === here} ms=${msOf(r.region)} />` : null}</div>
             <div class="rbr-card__squads">
               <${SquadPips} name="A" filled=${r.squads[0]} tone="a" />

@@ -7,7 +7,7 @@ Part of [DESIGN.md](../DESIGN.md) (the index; section numbers are global).
 `[ASSUMED]` A remake-only mode with no official source: the maintainer's decisions of 2026-11-08. A co-op room may have 8
 seats instead of 4. It is for humans only and is off unless the server sets `SP_LARGE_ROOMS=1` (lobby option `largeRooms`).
 
-- **Protocol**: `room.create { capacity: 8, password? }` (co-op on the default version only; `BAD_MSG` while the server keeps them
+- **Protocol**: `room.create { capacity: 8, password? }` (co-op on any official version — (2026-11-25, the user's request) 规程 too: another version's match runs in its version host, which takes `largeRoom` / `oneForAll` through `wireOptions` and sends the idle seat back as an `idle` frame; `rooms.list` rows name a non-default `version`; `BAD_MSG` while the server keeps them
   off; `password`, 4 letters, creates it private, and `BAD_MSG` on any other room), `room.state.capacity` / `locked` / `password` (the password in the host's copy only; omitted for a normal room), `room.moveSeat { squad }`
   (any member, before the match, to the other squad's lowest free seat; an old page's `{ seat }` names that seat's squad;
   `BAD_TARGET` inside the own squad or into a full one, `RATE` over the squad-move limit), `room.swapSeats { a, b }` (the
@@ -33,8 +33,8 @@ seats instead of 4. It is for humans only and is off unless the server sets `SP_
   room still shows in the browser, marked, and joining or watching it — from the browser, by key or by invite link —
   asks for the password. The lock is a casual one: the 6-wrong-tries-a-minute limit
   counts per session, so a reconnect resets it, and 4 letters are about 457,000 combinations — enough to keep strangers
-  out, not a secret. Gameplay plugins, plugin modes and other official versions
-  are refused.
+  out, not a secret. Gameplay plugins and plugin modes
+  are refused; every official version is offered (2026-11-25; before, the default version only).
 - **Squads**: seats 1–4 are squad A, 5–8 squad B, where the players sat. Nobody balances them: players join the other
   squad and the host swaps two players across the squads, so 6 players may be 3+3 or 4+2. With players in both squads the
   match has squads; everyone in one squad plays today's rules (still humans only).

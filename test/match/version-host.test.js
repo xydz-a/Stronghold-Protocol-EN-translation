@@ -256,3 +256,25 @@ test('a test room of a version plays in its host: test commands through the prox
   }
   assert.equal(DEFAULT_VERSION, 'act2autochess');
 });
+
+// (fork) Grand Alliance on 规程 (2026-11-25): an 8-seat large-room match runs in 规程's version host with its squads
+test('(g) an 8-seat Grand Alliance of 规程 plays in its version host: two squads, no engine error', { timeout: 300_000 }, async () => {
+  const cs = versions.csOf('act3autochess@V3_1');
+  const hosts = createMatchHosts({ contents: versions, log: quiet, options: { kind: 'version', virtualTime: true, matchOptions: { botRehearsal: 0 } } });
+  try {
+    const out = frames();
+    const idle = [];
+    const m = hosts.create(cs, matchOpts(cs, 'act3autochess@V3_1', bots(8), out, { largeRoom: true, onIdle: (id) => idle.push(id) }));
+    m.start();
+    const summary = await Promise.race([out.end, giveUp(280_000)]);
+    assert.ok(summary, 'the match ended');
+    assert.ok(summary.roundsPassed >= 1, JSON.stringify(summary).slice(0, 200));
+    const pub = out.broadcast.filter((f) => f.t === 'm.public').at(-1);
+    assert.deepEqual([...new Set(pub.players.map((p) => p.squad))].sort(), [0, 1], 'both squads reached the host');
+    const d = await m.diag();
+    assert.equal(d.errorCount, 0, `engine errors: ${JSON.stringify(d.errors)}`);
+    assert.equal(d.version, 'act3autochess@V3_1');
+    assert.deepEqual(idle, [], 'AI seats are never idle');
+    m.dispose();
+  } finally { hosts.close(); }
+});

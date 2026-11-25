@@ -52,7 +52,7 @@ The owner's decision of 2026-11-08: matchmaking matches by version, and a queued
 
 The owner's decision of 2026-11-08 reverses "Grand Alliances never get matchmaking" (§91): every Grand Alliance, locked or not, has the 搜寻队友 switch to fill its empty seats.
 
-- **Who fills them.** Only Doctors from the solo queue who opted in (`queue.join.large`, offered only while the server has Grand Alliances and 第二期下半 is ticked: they play it alone), and other searching Grand Alliances. A 4-seat room never merges into one.
+- **Who fills them.** Only Doctors from the solo queue who opted in (`queue.join.large`, offered while the server has Grand Alliances; (2026-11-25) for any version ticked — until then only with 第二期下半, which they played alone), and other searching Grand Alliances. A 4-seat room never merges into one.
 - **Merges.** Grand Alliances merge only with Grand Alliances, and only when every squad of the source fits whole into one squad of the target (`fitSquads`, squad A tried first); the rest is §90: exact fills to 8 first, a partial merge after `partialMergeAfterMs`.
 - **Solos.** Exact fills first, as for any room. ▸ [ASSUMED] A Grand Alliance that has searched `partialMergeAfterMs` also takes opted-in Doctors who waited that long, after the queue has formed what normal rooms it can: they sit in its room screen until it fills (8 would almost never fill exactly). They go to the first empty seat.
 - **Locked rooms.** A search lets matchmade Doctors in without the password: by searching, the host opened the room. The room stays locked for joins by key.

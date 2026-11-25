@@ -832,7 +832,7 @@ export const S2C = [
   'sys.online',
   // queue.state { queued, difficulty?, since?, aiAt?, placed? } — 单人匹配 (server/lobby.js sendQueue)
   'queue.state',
-  // (fork) rooms.list { rooms: [{ code, host, seats, capacity, difficulty, squads: [a, b], locked?, oneForAll? }] } — the open Grand
+  // (fork) rooms.list { rooms: [{ code, host, seats, capacity, difficulty, squads: [a, b], locked?, oneForAll?, version? }] } — the open Grand
   // Alliance rooms (server/lobby.js roomList), while the page watches them (rooms.watch)
   'rooms.list',
 ];

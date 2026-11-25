@@ -853,3 +853,30 @@ test('规程 room: a verified loadout sent while spectating keeps the room cs; r
   assert.equal(played.loadout[picked.id].skill, picked.skill);
   h.lobby.shutdown();
 });
+
+// (fork) Grand Alliance on every official version (the user's request of 2026-11-25: 规程 too): created, listed with its
+// version, started in that version's host with the large-room options (match/host/proxy.js wireOptions carries them).
+test('a Grand Alliance of 规程: created and listed with its version, started in its version host as a large room', () => {
+  const hosted = [];
+  const versionHosts = { create(cs, opts) { hosted.push([cs, opts]); return { hosted: true, start() {}, dispose() {} }; } };
+  const h = harness({ versionHosts, MatchClass: Rec, options: { largeRooms: true, roomListGapMs: 0 } });
+  const p = h.player('Host');
+  ok(h.lobby.create(p, { mode: 'coop', capacity: 8, difficulty: 'HARD', version: 'act3autochess@V3_1' }));
+  const room = h.lobby.roomOf(p);
+  assert.equal(room.large, true);
+  assert.equal(room.version, 'act3autochess@V3_1');
+  assert.equal(h.lobby.ownRoomList()[0].version, 'act3autochess@V3_1', 'the room browser names its version');
+  ok(h.lobby.contentReady(p, { cs: CS['act3autochess@V3_1'] }));
+  ok(h.lobby.start(p));
+  const [cs, opts] = hosted[0];
+  assert.equal(cs, CS['act3autochess@V3_1']);
+  assert.equal(opts.version, 'act3autochess@V3_1');
+  assert.equal(opts.largeRoom, true);
+  assert.equal(typeof opts.onIdle, 'function');
+  h.lobby.shutdown();
+  // a default-version Grand Alliance keeps today's list row (no version key)
+  const d = harness({ MatchClass: Rec, options: { largeRooms: true, roomListGapMs: 0 } });
+  ok(d.lobby.create(d.player('D'), { mode: 'coop', capacity: 8, version: DEFAULT_VERSION }));
+  assert.equal(Object.hasOwn(d.lobby.ownRoomList()[0], 'version'), false);
+  d.lobby.shutdown();
+});

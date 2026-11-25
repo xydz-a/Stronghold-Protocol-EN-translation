@@ -33,6 +33,12 @@
 - Bestial Hou (Bestial Ju's companion) stays visible while it walks. Before: its walk animation has no length, so it was drawn in an empty pose and vanished whenever it moved.
 - Treasure Hunter's Simulated Treasure keeps its chest model during combat. Before: it turned into the generic device box when the battle began.
 
+### Grand Alliance on Season 3, and the item effect tooltips (2026-11-25)
+
+- Grand Alliance rooms can now be created on any official season, Regulation · Sequence I included (still only when the server runs with `SP_LARGE_ROOMS=1`). The room browser names a room's season when it isn't Season 2. Before: Season 2 only; a room created from the Season 3 lobby could not start.
+- A Season 3 Grand Alliance plays with squads and the scaled pool: the options now reach the separate process that runs another season's matches. An 8-seat all-AI Season 3 match plays to its end with no engine error [src: test/match/version-host.test.js (g)].
+- The effects column's tooltip for an item with a lasting effect (Budget-Savvy Doll) is in the player's language. Before: always in Chinese, in every season.
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.
@@ -44,5 +50,5 @@ Server cost: none
 Operator notes:
 
 - Re-run `npm run assets:release-local` once to get `data/local-fx.json` (the official effects), then turn on Settings → Official Effects.
-- Grand Alliance needs the server started with `SP_LARGE_ROOMS=1`, and is offered on Season 2 only (unchanged from the fork).
+- Grand Alliance needs the server started with `SP_LARGE_ROOMS=1` (unchanged from the fork); it is now offered on every season.
 - After pulling, rebuild the unit art the merge touched on a machine with the art (`node tools/fetch-assets.mjs --offline --add-only --refresh-units=<list from npm run merge:generated>`, then `npm run merge:generated -- --rebuilt`).

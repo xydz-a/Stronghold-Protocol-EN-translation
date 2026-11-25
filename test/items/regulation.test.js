@@ -810,6 +810,8 @@ test('prep: passbook, dice, documents, dolls, letter, identity, pager, beacon, m
       assert.deepEqual(equip(giveItem(m, ps, id), t), OK);
       assert.equal(ps.funds, f0);
       assert.ok(ps.effects.some((e) => e.key === 'effect:builtin_round_coin' && e.params.count === n));
+      // (fork) the row names its item, so the client describes it in the player's language (ui/effectsList.js)
+      assert.ok(ps.effectsView().some((v) => v.iconKind === 'item' && v.itemId === id), 'the effect row carries its item id');
       m.dispatch(ps, 'onRoundStart', { round: 2 });
       assert.equal(ps.funds - f0, n);
     });

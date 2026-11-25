@@ -1148,10 +1148,12 @@ export class Lobby {
   create(session, { mode, difficulty: asked, test, version: askedVersion, soloUnlimited, capacity, password, oneForAll, modeId: askedMode } = {}) {
     // A test room exists only when the process switch allowed it. The check runs before the room is built.
     if (test === true && this.testEnabled !== true) return fail(ERR.TEST_DISABLED);
-    // (fork) an 8-seat room (shared/largeRoom.js): co-op on the default version, only while the server allows them
+    // (fork) an 8-seat room (shared/largeRoom.js): co-op, only while the server allows them; any official version (the user's
+    // request of 2026-11-25: Grand Alliance on 规程 too — another version's match runs in its version host, which takes
+    // the large-room options: match/host/proxy.js wireOptions)
     const large = capacity === LARGE_ROOM_SEATS;
     if (large && this.largeRooms !== true) return fail(ERR.BAD_MSG, 'large rooms are off on this server');
-    if (large && (mode !== 'coop' || (askedVersion != null && askedVersion !== DEFAULT_VERSION))) return fail(ERR.BAD_MSG, 'a large room is a co-op room of the default version');
+    if (large && mode !== 'coop') return fail(ERR.BAD_MSG, 'a large room is a co-op room');
     // (fork) a Grand Alliance created private (私密, the room's lock) with its 4-letter password
     if (password != null && (!large || typeof password !== 'string' || !ROOM_PASSWORD_RE.test(password))) return fail(ERR.BAD_MSG, 'a password is a Grand Alliance\'s 4 letters');
     // (fork) One for All is a Grand Alliance strategy mode only
@@ -1746,7 +1748,6 @@ export class Lobby {
     if (room.spectatorOf(session.playerId)) return fail(ERR.SPECTATOR);
     if (room.hostId !== session.playerId) return fail(ERR.NOT_HOST);
     if (room.match) return fail(ERR.ROOM_STARTED);
-    if (room.large) return fail(ERR.BAD_TARGET, 'large rooms play the default version'); // (fork) shared/largeRoom.js
     if (!this.versionEnabled(version)) return fail(ERR.VERSION_UNKNOWN);
     if (!this.offered(version, room.mode).length) return fail(ERR.VERSION_UNSUPPORTED, `${version} has no ${room.mode} rooms`);
     if (version === room.version) return fail(ERR.ALREADY);
@@ -2088,7 +2089,9 @@ export class Lobby {
       const host = room.seatOf(room.hostId);
       const squads = [0, 1].map((sq) => room.seats.slice(sq * SQUAD_SEATS, (sq + 1) * SQUAD_SEATS).filter(Boolean).length);
       out.push({ code: room.code, host: host ? host.name : '', seats, capacity: room.capacity, difficulty: room.difficulty, squads,
-        ...(room.locked ? { locked: true } : {}), ...(room.oneForAll ? { oneForAll: true } : {}), at: room.createdAt });
+        ...(room.locked ? { locked: true } : {}), ...(room.oneForAll ? { oneForAll: true } : {}),
+        // (fork) the official version it plays, when not the default (Grand Alliance on every version since 2026-11-25)
+        ...(room.version !== DEFAULT_VERSION ? { version: room.version } : {}), at: room.createdAt });
     }
     out.sort((x, y) => x.at - y.at);
     return out.slice(0, 50);
@@ -2611,8 +2614,8 @@ export class Lobby {
       this.log.error(`[lobby] ${room.code} has no match host for ${room.version}`);
       return fail(ERR.INTERNAL, 'no match host for this version');
     }
-    // (fork) a large room plays the official modes of the default version (shared/largeRoom.js)
-    if (room.large && (room.modded || versioned)) return fail(ERR.BAD_TARGET, 'large rooms play the official game without gameplay plugins');
+    // (fork) a large room plays the official game (any official version), never with gameplay plugins (shared/largeRoom.js)
+    if (room.large && room.modded) return fail(ERR.BAD_TARGET, 'large rooms play the official game without gameplay plugins');
     // (room.start refuses during a vote; a start from elsewhere voids it)
     if (room.versionVote) this.voidVersionVote(room, 'members');
     const host = room.seatOf(room.hostId);
@@ -3407,7 +3410,7 @@ export class Lobby {
    * A version without the difficulty picked waits at its fallback (fallbackDifficulty, as room.create: 终极 → 绝境), each
    * version at its own (the entry's `at`, queue.state.at), so 终极 with every version ticked is 终极 for 第二期下半 and
    * 绝境 for the others. `large`: may
-   * also be seated in a Grand Alliance (only while the server has them and 第二期下半 is queued for: they play it alone).
+   * also be seated in a Grand Alliance (only while the server has them; (fork) of any version queued for).
    * `oneForAll` (with `large` only): may also be seated in a One for All Grand Alliance (off by default).
    */
   queueJoin(session, { difficulty, versions: asked, large, oneForAll }) {
@@ -3422,7 +3425,7 @@ export class Lobby {
     /** @type {Record<string, string>} */
     const at = {};
     for (const v of versions) { const d = this.fallbackDifficulty(v, 'coop', difficulty); if (d !== difficulty) at[v] = d; }
-    const opts = { versions, at: Object.keys(at).length ? at : null, large: large === true && this.largeRooms === true && versions.includes(DEFAULT_VERSION) };
+    const opts = { versions, at: Object.keys(at).length ? at : null, large: large === true && this.largeRooms === true };
     opts.oneForAll = opts.large && oneForAll === true;
     if (cur) this.removeMember(cur, session.playerId);
     const e = this.soloQueue.get(session.playerId);

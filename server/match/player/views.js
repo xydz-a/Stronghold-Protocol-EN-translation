@@ -90,6 +90,8 @@ export class PlayerViews {
       if (e.hidden) continue;
       const v = { id: e.id, name: e.name || e.id, desc: e.desc || '', iconKind: e.iconKind || 'choice', iconId: e.iconId || e.id };
       if (e.counter != null) v.counter = e.counter;
+      // (fork) the item record an item row copies its text from (its iconId is the trap's art): ui/effectsList.js effectDesc
+      if (typeof e.itemId === 'string' && e.itemId) v.itemId = e.itemId;
       out.push(v);
     }
     for (const b of this.bounties) {

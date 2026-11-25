@@ -53,6 +53,12 @@ export function wireOptions(opts) {
   for (const k of ['roomCode', 'mode', 'difficulty', 'modeId', 'aiPicksLast', 'soloUnlimited', 'seats', 'spectators', 'seed', 'matchNo', 'cs', 'vs', 'requireCs', 'kitted', 'version', 'rerollLock']) {
     if (opts[k] !== undefined) out[k] = opts[k];
   }
+  // (fork) a Grand Alliance of another version (shared/largeRoom.js): squads, the scaled pool, One for All. Only when set,
+  // so every other worker payload stays as it was; its idle callback comes back as an 'idle' message (deliver).
+  if (opts.largeRoom === true) {
+    out.largeRoom = true;
+    if (opts.oneForAll === true) out.oneForAll = true;
+  }
   // A test room must arrive as a test match. Forwarding these only when the flag is set keeps every other
   // worker payload identical. Dropping the flag fails closed: the worker match refuses g.test.
   if (opts.test === true) {
@@ -203,6 +209,8 @@ export class MatchProxy {
     if (m.type === 'send') { try { this.opts.send(m.playerId, m.msg); } catch (e) { this.log.error?.(`[match ${this.roomCode}] send failed`, e); } return; }
     if (m.type === 'broadcast') { try { if (m.except) this.opts.broadcast(m.msg, null, m.except); else this.opts.broadcast(m.msg); } catch (e) { this.log.error?.(`[match ${this.roomCode}] broadcast failed`, e); } return; }
     if (m.type === 'end') { this._end(m.summary ?? null); return; }
+    // (fork) a Grand Alliance's idle seat (Match onIdle → the lobby's idleKick)
+    if (m.type === 'idle') { try { this.opts.onIdle?.(m.playerId); } catch (e) { this.log.error?.(`[match ${this.roomCode}] onIdle failed`, e); } return; }
     if (m.type === 'failed') { this.crash(/** @type {any} */ (this.host).kind === 'version' ? 'version-start' : 'plugin-start', m.error); }
   }
 

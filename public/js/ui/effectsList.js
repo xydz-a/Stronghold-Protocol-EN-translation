@@ -28,7 +28,7 @@ const SOURCES = ['effects', 'bands', 'items', 'garrisons'];
 /**
  * An effect entry's description in the current language (the server copies a record's Chinese text: an effect's, a
  * strategy's, an item's, a 特质's — sentText; a reworded one, such as a multi-round 悬赏's, stays as sent).
- * @param {{ id?: string, iconId?: string, desc?: string }} e
+ * @param {{ id?: string, itemId?: string, iconId?: string, desc?: string }} e
  */
 export function effectDesc(e) {
   const desc = e.desc || '';
@@ -49,7 +49,9 @@ export function effectDesc(e) {
   }
   if (!desc) return desc;
   for (const file of SOURCES) {
-    for (const id of [e.id, e.iconId]) {
+    // (fork) `itemId`: an item row's record (精打细算玩偶's iconId is its trap art, trap_1113_acarm113, so the lookup by
+    // icon found nothing and the tooltip stayed Chinese — David's playtest of 2026-11-25)
+    for (const id of [e.id, e.itemId, e.iconId]) {
       const raw = typeof id === 'string' && id ? data.lookupRaw(file, id) : null;
       if (!raw) continue;
       const loc = data.lookup(file, id) || raw;

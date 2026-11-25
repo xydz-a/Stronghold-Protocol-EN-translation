@@ -966,7 +966,8 @@ export function LobbyScreen() {
     setQueueVersionsPref(next);
     savePref('lobby.queueVersions', next);
   };
-  const queueLargeOk = largeRooms && queueVersions.includes(DEFAULT_VERSION);
+  // (fork) any official version since 2026-11-25 (the user's request: Grand Alliance on 规程 too)
+  const queueLargeOk = largeRooms;
   const queueOpts = {
     versions: offeredIds.length > 1 ? offeredIds.map((id) => ({ id, on: queueVersions.includes(id) })) : null,
     onVersion: tickVersion,
@@ -991,7 +992,7 @@ export function LobbyScreen() {
     ...(mode === 'solo' && soloFree && soloTimed === true ? { soloUnlimited: true } : {}),
     ...(mode === 'solo' && shownMode ? { modeId: shownMode } : {}),
   }));
-  // (fork) a Grand Alliance room (shared/largeRoom.js): co-op, 8 seats, the default version, at the co-op difficulty shown
+  // (fork) a Grand Alliance room (shared/largeRoom.js): co-op, 8 seats, the lobby's version, at the co-op difficulty shown
   // (fork) 创建大同盟 opens 选择模拟协议 first: the difficulty and 公开 / 私密 (with its password) are chosen before the room exists
   const [grandOpen, setGrandOpen] = useState(false);
   const [grandPriv, setGrandPriv] = useState(false);
@@ -1000,7 +1001,7 @@ export function LobbyScreen() {
   const createLarge = () => setGrandOpen(true);
   const createGrand = () => {
     if (grandPriv && !ROOM_PASSWORD_RE.test(grandPw)) return;
-    run('create', () => net.request('room.create', { mode: 'coop', capacity: 8, difficulty: shownCoop, ...(grandPriv ? { password: grandPw } : {}),
+    run('create', () => net.request('room.create', { mode: 'coop', capacity: 8, difficulty: shownCoop, ...(versions ? { version } : {}), ...(grandPriv ? { password: grandPw } : {}),
       ...(grandOfa ? { oneForAll: true } : {}), ...(testMode && asTest ? { test: true } : {}) }));
   };
   // (fork) 单人匹配: the queue at the co-op difficulty shown; the lobby stays on screen while queued
@@ -1093,7 +1094,7 @@ export function LobbyScreen() {
       </aside>
       <section class=${`hub-entries${queue.queued ? ' is-queued' : ''}`} aria-label=${t('模拟方式')}>
         ${queue.queued ? html`<div class="create-box hub-queue"><${QueuePanel} busy=${busy} online=${online} run=${run} /></div>`
-          : MODE_CARDS.filter((c) => c.id !== 'grand' || (largeRooms && version === DEFAULT_VERSION)).map((c) => {
+          : MODE_CARDS.filter((c) => c.id !== 'grand' || largeRooms).map((c) => {
           const timedCard = c.id === 'solo';
           const timePoint = timedCard ? soloTimeMsgid('card', { timed: soloTimed, unlimited: soloFree }) : '';
           const timeShort = timedCard ? soloTimeMsgid('short', { timed: soloTimed, unlimited: soloFree }) : '';
@@ -1105,7 +1106,7 @@ export function LobbyScreen() {
     ${allyOpen ? html`<${AllianceSelect} onClose=${() => setAllyOpen(false)} onCreate=${() => create('coop')} difficulty=${shownCoop}
       code=${code} onCode=${(v) => setCode(normalizeCode(v))} codeOk=${codeOk} online=${online} busy=${busy}
       onJoin=${join} onSpectate=${spectate} recent=${recent} marks=${marks} focusKey=${!coarse}
-      grand=${largeRooms && version === DEFAULT_VERSION ? { onBrowse: () => { setAllyOpen(false); setLargeOpen(true); }, onCreate: createLarge } : null}
+      grand=${largeRooms ? { onBrowse: () => { setAllyOpen(false); setLargeOpen(true); }, onCreate: createLarge } : null}
       testMode=${testMode} asTest=${asTest} onTest=${setAsTest} short=${shortScreen} />` : null}
     ${soloOpen ? html`<${ProtocolSelect} roomMode="solo" difficulty=${shownSolo} onDifficulty=${pickDifficulty}
       onClose=${() => setSoloOpen(false)} onCreate=${() => create('solo')} busy=${busy} online=${online}

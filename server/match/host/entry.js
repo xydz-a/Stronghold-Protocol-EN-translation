@@ -241,6 +241,8 @@ function create(matchId, opts) {
       send: (playerId, msg) => { post({ type: 'send', matchId, playerId, msg }); return true; },
       broadcast: (msg, _encoded, except) => post({ type: 'broadcast', matchId, msg, ...(except ? { except } : {}) }),
       onEnd: (summary) => post({ type: 'end', matchId, summary: plain(summary) }),
+      // (fork) a Grand Alliance's idle seat goes back to the lobby (proxy.js deliver 'idle')
+      ...(opts.largeRoom === true ? { onIdle: (playerId) => post({ type: 'idle', matchId, playerId }) } : {}),
       ...(sched ? { scheduler: sched } : {}),
     });
   } catch (e) {
