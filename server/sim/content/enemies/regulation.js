@@ -10,7 +10,7 @@ import {
   hurt, elem, areaAllies, auraAllies, remainingRoute, stayRoute, spawnChildren, nthOf, canCast, BOOM_RADIUS, auraBuff, watchDeaths,
   unbalancedNow,
 } from './helpers.js';
-import { skill, stealth, ep, refraction, reborn } from './archetypes.js';
+import { skill, stealth, ep, refraction, reborn, deathBoom } from './archetypes.js';
 
 const num = (v, d) => {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -122,23 +122,50 @@ function kitWingnt(ab) {
 }
 
 /** 冰原卫法者: silenced death boom (cold and freeze); unbalanced self HP loss is not silenced. */
+const KRGRG_DELAY = 1.2;   // PRTS 冰原卫法者 关于能力
+const KRGRG_R = 1.65;
+
+/**
+ * (fork) 冰爆源石虫·α: the base slug's blast (special.js — phys boom.atk_scale, boom.freeze s of 寒冷, its range radius). The α had no
+ * kit in upstream 0.4.0, so the 致命 one died quietly (David's playtest of 2026-11-25).
+ */
+function kitSnslime(ab, e) {
+  return [deathBoom({ scale: tv(ab, 'boom.atk_scale', 0), r: (e.def.raw.stats && e.def.raw.stats.rawRangeRadius) || 1.25,
+    status: { key: 'cold', dur: tv(ab, 'boom.freeze', 0) } })];
+}
+
+/**
+ * (fork) “喷射罐” / “喷爆罐”: PRTS 关于能力 「死亡后熄灭周围3x3范围内的紧急供暖器并对半径1.55范围内的我方单位造成攻击力100%的法术溅射伤害与
+ * 10s寒冷（可被沉默）」 — Boom.atk_scale / Boom.freeze. No kit upstream. Silenced, it does not blast (that 「可被沉默」; the slugs' deathBoom
+ * is silenceable the same way); the 紧急供暖器 part has no counterpart here.
+ */
+function kitWinbom(ab) {
+  return [deathBoom({ scale: tv(ab, 'Boom.atk_scale', 1), type: 'arts', r: 1.55, status: { key: 'cold', dur: tv(ab, 'Boom.freeze', 10) } })];
+}
+
 function kitKrgrg(ab) {
   const scale = tv(ab, 'boom.atk_scale', 1);
   const cold = tv(ab, 'boom.cold', 0);
-  const freeze = tv(ab, 'boom.freeze', 0);
   const bleed = tv(ab, 'unbalanced_bleed.damage', 0);
   const iv = tv(ab, 'unbalanced_bleed.interval', 0.066);
   return [
     {
       sil: true,
+      // (fork) PRTS 冰原卫法者 关于能力: 「爆炸半径1.65，延迟1.2秒，对我方单位和敌方单位造成攻击力130%法术溅射伤害并施加持续5秒寒冷」 —
+      // only 寒冷 (boom.cold): a second cold within it becomes 冻结 by the ordinary rule (battle/status.js). Upstream 0.4.0
+      // froze every operator in reach outright (boom.freeze on top) at once, around the knock-down spot, operators only.
       death(c, b, e) {
         if (c.reason !== 'killed') return;
-        for (const u of areaAllies(b, e, e.x, e.y, BOOM_RADIUS)) {
-          if (scale > 0) hurt(b, e, u, e.s.atk * scale, 'arts');
-          if (!u.alive) continue;
-          if (cold > 0) b.applyStatus(u, 'cold', { duration: cold, source: e });
-          if (freeze > 0 && u.alive) b.applyStatus(u, 'freeze', { duration: freeze, source: e });
-        }
+        const x = e.x, y = e.y, atk = e.s.atk;
+        b.after(KRGRG_DELAY, () => {
+          b.fx('explode', { x, y, r: KRGRG_R, kind: 'deathBoom', id: e.id });
+          const hit = [...areaAllies(b, e, x, y, KRGRG_R).filter((u) => !u.isFlying),
+            ...b.enemiesInRadius(x, y, KRGRG_R).filter((o) => o !== e && o.alive && o.motion !== 'FLY')];
+          for (const u of hit) {
+            if (scale > 0) hurt(b, e, u, atk * scale, 'arts');
+            if (cold > 0 && u.alive) b.applyStatus(u, 'cold', { duration: cold, source: e });
+          }
+        }, { holdsBattle: true });
       },
     },
     {
@@ -225,11 +252,93 @@ function kitBdguad(ab) {
 }
 
 /** 魂灵法骸: the cooldown stands in for one orbiting fragment (no stage-prop pickup). [ASSUMED] */
+// (fork) 魂灵涡流 pickup, shared by 聚焦 / 棱镜魂灵残迹 and 注能 / 粹影魂灵法骸 — PRTS 关于能力: 「魂灵涡流进入自身半径0.25范围内时，若
+// 自身充能未达到上限（3层）且未处于消失状态，则获得1层充能，并令此魂灵涡流立刻退场（不可对空）」. The vortex leaves the field: no kill, no
+// bounty, no leak (Battle.withdrawEnemy). Upstream 0.4.0 had no pickup: the remnant never fired, the husk summoned for free.
+const SOUL_KEY = 'enemy_1428_lrsoul';
+const SOUL_PICK_R = 0.25;
+const SOUL_CAP = 3;
+function soulCharges(e) { return e.mem.soulCharges ?? 0; }
+function soulPickup() {
+  return {
+    tick(b, e) {
+      if (!e.alive || e.hidden || soulCharges(e) >= SOUL_CAP) return;
+      for (const v of b.aliveEnemies()) {
+        if (v === e || v.motion === 'FLY' || !(v.defId === SOUL_KEY || v.defId?.startsWith(`${SOUL_KEY}_`))) continue;
+        if (hypot(v.x - e.x, v.y - e.y) > SOUL_PICK_R + 1e-9) continue;
+        if (!b.withdrawEnemy(v, 'absorbed')) continue;
+        e.mem.soulCharges = soulCharges(e) + 1;
+        b.fx('summon', { x: e.x, y: e.y, id: e.id, key: SOUL_KEY, n: 1, kind: 'soulAbsorb' });
+        if (soulCharges(e) >= SOUL_CAP) return;
+      }
+    },
+  };
+}
+
+/**
+ * 聚焦 / 棱镜魂灵残迹: 巫术激流 (PRTS skill table): 「持有充能，且自身所在行/列存在我方单位时可触发」「发射前消耗所有充能，向目标所在正方向
+ * 持续发射激光（最多持续7.8s）」「激光每秒对宽度0.65的区域内所有我方单位造成自身攻击力40%的法术伤害」「技能期间，自身攻击力每秒+40%，最多
+ * 提升至+(消耗充能数×25)%」 — atk_scale / atk_step / atk_ladder of its Laser skill (棱镜: 50% / +200% / 40% per charge). The beam
+ * runs to the field's edge [ASSUMED: PRTS gives no length; matches the official events' behaviour, user OK 2026-11-25]; it stands still through the channel as the 死亡之眼 channel does, and a
+ * stun / silence ends it [ASSUMED].
+ */
+const LASER_DUR = 7.8;
+const LASER_HALF_W = 0.65 / 2;
+function laserLine(b, e) {
+  const row = Math.round(e.y), col = Math.round(e.x);
+  const pick = (list) => list.find((u) => u.tileR === row) || list.find((u) => u.tileC === col) || null;
+  const t = pick(byDistance(e, areaAllies(b, e, e.x, e.y, 99)));
+  if (!t) return null;
+  return t.tileR === row ? { axis: 'x', dir: Math.sign(t.x - e.x) || 1, at: row, t } : { axis: 'y', dir: Math.sign(t.y - e.y) || 1, at: col, t };
+}
+function byDistance(e, list) {
+  return list.slice().sort((p, q) => (hypot(p.x - e.x, p.y - e.y) - hypot(q.x - e.x, q.y - e.y)) || (p.id < q.id ? -1 : 1));
+}
+function inLaser(e, L, u) {
+  if (L.axis === 'x') return Math.abs(u.y - L.at) <= LASER_HALF_W + 1e-9 && (u.x - e.x) * L.dir >= -0.5;
+  return Math.abs(u.x - L.at) <= LASER_HALF_W + 1e-9 && (u.y - e.y) * L.dir >= -0.5;
+}
+function kitLrwzrd(ab) {
+  const sk = ab.sk.Laser;
+  const scale = bb(sk, 'atk_scale', 0.4);
+  const step = bb(sk, 'atk_step', 0.4);
+  const ladder = bb(sk, 'atk_ladder', 0.25);
+  return [
+    soulPickup(),
+    timed(sk, (b, e, a) => {
+      const L = laserLine(b, e);
+      const n = soulCharges(e);
+      if (!L || !(n > 0)) return;
+      e.mem.soulCharges = 0;
+      const cap = n * ladder;
+      b.addBuff(e, { key: 'ab:channel', duration: LASER_DUR, flags: { disarm: true } });
+      let k = 0;
+      const stop = () => {
+        h.cancel(); b.removeBuff(e, 'ab:channel'); b.removeBuff(e, 'reg:laserAtk');
+        if (a && a.cd != null) a.left = Math.max(a.left ?? 0, a.cd);
+      };
+      const h = b.every(1, () => {
+        if (!e.alive) { h.cancel(); return; }
+        if (e.s.flags.stun || e.s.flags.silence) { stop(); return; }
+        k++;
+        b.addBuff(e, { key: 'reg:laserAtk', duration: LASER_DUR, refresh: 'replace', mods: { atkPct: Math.min(cap, step * k) } });
+        const hit = areaAllies(b, e, e.x, e.y, 99).filter((u) => inLaser(e, L, u));
+        const far = byDistance(e, hit).pop() || L.t;
+        b.fx('beam', { x: e.x, y: e.y, from: e.id, to: far.id, kind: 'soulLaser', dur: 1 });
+        for (const u of hit) hurt(b, e, u, e.s.atk * scale, 'arts');
+        if (k + 1 > LASER_DUR) stop();
+      }, { owner: e });
+    }, { sil: true, cond: (b, e) => soulCharges(e) > 0 && !!laserLine(b, e) }),
+  ];
+}
+
+/** 注能 / 粹影魂灵法骸: each 魂灵残片 costs one 魂灵涡流 (PRTS 「保有魂灵涡流时，消耗魂灵涡流召唤一个…最多持有3个魂灵残片」). */
 function kitLrmzrd(ab) {
   const sk = ab.sk.summonFireball;
   const scale = bb(sk, 'atk_scale', 1);
   const maxN = bb(sk, 'max_projectile_count', 3);
   return [
+    soulPickup(),
     {
       tick(b, e, a, dt) {
         const list = e.mem.regFrags;
@@ -253,9 +362,10 @@ function kitLrmzrd(ab) {
     },
     timed(sk, (b, e) => {
       const list = e.mem.regFrags || (e.mem.regFrags = []);
-      if (list.length >= maxN) return;
+      if (list.length >= maxN || !(soulCharges(e) > 0)) return;
+      e.mem.soulCharges = soulCharges(e) - 1;
       list.push({ ang: list.length * 2.094, scale });
-    }),
+    }, { cond: (b, e) => soulCharges(e) > 0 && (e.mem.regFrags?.length ?? 0) < maxN }),
   ];
 }
 
@@ -415,6 +525,18 @@ function kitLfkght(ab) {
   ];
 }
 
+/**
+ * (fork) 变异沙地兽 / 变异岩蛛 (and their α): 「死亡时分裂两个 / 三个<畸变赘生物>」 (α: <畸变恶性瘤>) — the talent's deathrattle
+ * (enemy_key, cnt, delay 0.2) on a knock-down, as 变异巨岩蛛's below [src: their talents' deathrattle.* blackboards].
+ * Upstream 0.4.0 gave only the giant spider a kit, so these two split into nothing (David's report of 2026-11-25).
+ */
+function kitDeathSplit(ab) {
+  const key = sv(ab.tS, 'deathrattle.enemy_key');
+  const cnt = tv(ab, 'deathrattle.cnt', 1);
+  const delay = tv(ab, 'deathrattle.delay', 0.2);
+  return [{ sil: true, death(c, b, e) { if (c.reason === 'killed') replaceLater(b, e, key, delay, cnt); } }];
+}
+
 function kitHarchn(ab) {
   const key = sv(ab.tS, 'deathrattle.enemy_key');
   const cnt = tv(ab, 'deathrattle.cnt', 4);
@@ -534,10 +656,15 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1375_ltnclr_2: same(kitLtnclr),
   enemy_1388_wingnt: kitWingnt,
   enemy_1388_wingnt_2: same(kitWingnt),
+  enemy_1067_snslime_2: kitSnslime,
+  enemy_1385_winbom: kitWinbom,
+  enemy_1385_winbom_2: same(kitWinbom),
   enemy_1191_krgrg: kitKrgrg,
   enemy_1191_krgrg_2: same(kitKrgrg),
   enemy_1219_mtrbty: kitMtrbty,
   enemy_1409_bdguad_2: kitBdguad,
+  enemy_1429_lrwzrd: kitLrwzrd,
+  enemy_1429_lrwzrd_2: same(kitLrwzrd),
   enemy_1431_lrmzrd: kitLrmzrd,
   enemy_1431_lrmzrd_2: same(kitLrmzrd),
   enemy_9040_accrit: kitAccrit,
@@ -557,6 +684,10 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1437_dsfull: kitDsfull,
   enemy_1437_dsfull_2: same(kitDsfull),
   enemy_1104_lfkght_3: kitLfkght,
+  enemy_1131_sbeast: kitDeathSplit,
+  enemy_1131_sbeast_2: same(kitDeathSplit),
+  enemy_1132_sarchn: kitDeathSplit,
+  enemy_1132_sarchn_2: same(kitDeathSplit),
   enemy_1133_harchn: kitHarchn,
   enemy_1133_harchn_2: same(kitHarchn),
   enemy_9030_acpara: kitAcpara,

@@ -30,8 +30,10 @@ export function commandStatus(c) {
 /** PRTS expands replacement text; [ASSUMED] the two rows without a replacement render an empty tag, as on PRTS. */
 export function commandText(c) {
   const band = Object.values(data.get('bands') || {}).find(b => b.skills?.some(s => s.effectId === c.effectId));
-  const raw = c.descRaw || c.desc || '';
-  const extra = raw.includes('{@tag}') ? (band?.descRaw || '').match(/(?:<@[^>]+>)?<在场6名不同[^>]*>[\s\S]*/)?.[0] || '' : '';
+  // (fork) the row as this page's data has it (data.get is localized: the player's language), else the server's Chinese
+  const row = band?.skills?.find((s) => s.effectId === c.effectId);
+  const raw = row?.descRaw || row?.desc || c.descRaw || c.desc || '';
+  const extra = raw.includes('{@tag}') ? (band?.descRaw || '').match(/(?:<@[^>]+>)?<(?:在场6名不同|With 6 different)[^>]*>[\s\S]*/)?.[0] || '' : '';
   // The unlock sentence already occurs in the skill row; the full strategy text supplies it for the locked row.
   const unlock = raw.includes('{@unlock}') && c.type === 'NONE' ? (band?.descRaw || '').split('\n').at(-1) : '';
   return [raw.replaceAll('{@tag}', '').replaceAll('{@unlock}', ''), extra, unlock].filter(Boolean).join('\n');

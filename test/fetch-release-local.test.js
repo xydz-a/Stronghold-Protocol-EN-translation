@@ -154,3 +154,25 @@ test('entry selection: one optional top folder, no directories, nothing that lea
   assert.equal(groupRanges(ends).length, 1);
   assert.equal(groupRanges(ends, { max: 1 }).length, all.length);
 });
+
+// (fork) the official battle effects' file list comes along when the zip has it (without it local/fx/ is never served and
+// 设置「官方特效」 stays hidden); a current one is moved aside like the rest.
+test('data/local-fx.json is installed with the art when the zip has it, the old one kept', async (t) => {
+  const root = checkout(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'data'));
+  fs.writeFileSync(path.join(root, 'data/local-fx.json'), '{"old":"fx"}');
+  const files = { ...FILES, 'Stronghold-Protocol/public/assets/local/fx/index.json': '{"fx":1}', 'Stronghold-Protocol/data/local-fx.json': '{"groups":{"fx":1}}' };
+  const r = await run({ repo: 'o/r' }, { ...quiet, root, fetchImpl: fakeFetch(makeZip(files)).impl });
+  assert.equal(r.files, 6);
+  assert.equal(read(root, 'data/local-fx.json'), '{"groups":{"fx":1}}');
+  assert.equal(read(root, 'public/assets/local/fx/index.json'), '{"fx":1}');
+  assert.equal(fs.readFileSync(path.join(r.previous, 'local-fx.json'), 'utf8'), '{"old":"fx"}');
+});
+
+test('a zip without data/local-fx.json leaves the current one alone', async (t) => {
+  const root = checkout(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'data'));
+  fs.writeFileSync(path.join(root, 'data/local-fx.json'), '{"mine":1}');
+  await run({ repo: 'o/r' }, { ...quiet, root, fetchImpl: fakeFetch(makeZip(FILES)).impl });
+  assert.equal(read(root, 'data/local-fx.json'), '{"mine":1}');
+});

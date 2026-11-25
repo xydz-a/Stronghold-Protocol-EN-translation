@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// tools/fetch-release-local.mjs — the local-client art (public/assets/local/ + data/local-assets.json) of a full
+// tools/fetch-release-local.mjs — the local-client art (public/assets/local/ + data/local-assets.json, and data/local-fx.json
+// when the zip has it) of a full
 // release zip, for an install that has no Arknights client to extract it from (a Linux server running from source or
 // from the lite package; docs/DEPLOY.md §6 says to copy these two from the full package of the same version).
 //
@@ -123,15 +124,17 @@ export function parseCentralDirectory(cd) {
 }
 
 /**
- * The entries to install, each with its repo-relative `rel` path: files under `<top>/public/assets/local/` and
- * `<top>/data/local-assets.json` (`<top>/` is the zip's one top folder, or none). Directories, and any name that
+ * The entries to install, each with its repo-relative `rel` path: files under `<top>/public/assets/local/`,
+ * `<top>/data/local-assets.json` and (fork) `<top>/data/local-fx.json` — the official battle effects' own file list: without
+ * it the files under local/fx/ are never served and 设置「官方特效」 stays hidden (David's 2026-11-25 report: procedural hits,
+ * statuses and skills after this fetch) — (`<top>/` is the zip's one top folder, or none). Directories, and any name that
  * would leave the target (`..`, absolute, backslashes), are skipped.
  */
 export function selectLocalEntries(entries) {
   const out = [];
   for (const e of entries) {
     if (e.name.endsWith('/')) continue;
-    const m = /^(?:[^/]+\/)?((?:public\/assets\/local\/.+)|(?:data\/local-assets\.json))$/.exec(e.name);
+    const m = /^(?:[^/]+\/)?((?:public\/assets\/local\/.+)|(?:data\/local-(?:assets|fx)\.json))$/.exec(e.name);
     if (!m) continue;
     const rel = m[1];
     if (rel.includes('\\') || rel.split('/').some((s) => s === '..' || s === '.' || s === '')) continue;
@@ -285,20 +288,24 @@ export async function run(opts = {}, { root = ROOT, fetchImpl = fetch, log = con
 
   // swap in: the current ones are moved aside, never deleted
   const liveDir = path.join(root, 'public', 'assets', 'local'), liveMan = path.join(root, 'data', 'local-assets.json');
+  const liveFx = path.join(root, 'data', 'local-fx.json'), stageFx = path.join(stage, 'data', 'local-fx.json');
+  const hasFx = fs.existsSync(stageFx);
   let previous = null;
-  if (fs.existsSync(liveDir) || fs.existsSync(liveMan)) {
+  if (fs.existsSync(liveDir) || fs.existsSync(liveMan) || (hasFx && fs.existsSync(liveFx))) {
     previous = path.join(root, '.cache', 'release-local', `previous-${now().toISOString().replace(/[:.]/g, '-')}`);
     fs.mkdirSync(previous, { recursive: true });
     if (fs.existsSync(liveDir)) fs.renameSync(liveDir, path.join(previous, 'public-assets-local'));
     if (fs.existsSync(liveMan)) fs.renameSync(liveMan, path.join(previous, 'local-assets.json'));
+    if (hasFx && fs.existsSync(liveFx)) fs.renameSync(liveFx, path.join(previous, 'local-fx.json'));
     say(`[local] the previous local art is kept in ${path.relative(root, previous)}`);
   }
   fs.mkdirSync(path.dirname(liveDir), { recursive: true });
   fs.renameSync(path.join(stage, 'public', 'assets', 'local'), liveDir);
   fs.mkdirSync(path.dirname(liveMan), { recursive: true });
   fs.renameSync(path.join(stage, 'data', 'local-assets.json'), liveMan);
+  if (hasFx) fs.renameSync(stageFx, liveFx);
   fs.rmSync(stage, { recursive: true, force: true });
-  say(`[local] installed ${sel.length} files from ${tag} into public/assets/local/ and data/local-assets.json`);
+  say(`[local] installed ${sel.length} files from ${tag} into public/assets/local/ and data/local-assets.json${hasFx ? ' (+ data/local-fx.json: the official effects)' : ''}`);
   return { tag, url, files: sel.length, bytes, downloaded: todo.length, fetched, installed: true, previous };
 }
 

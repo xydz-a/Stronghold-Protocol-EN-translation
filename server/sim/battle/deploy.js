@@ -115,6 +115,21 @@ export class BattleDeploy {
     this._remove(unit, reason, null, permanent, dying);
   }
 
+  /**
+   * (fork) An enemy leaves the field with neither a knock-down nor a leak (PRTS 「令其退场」: a 魂灵涡流 picked up by a 魂灵残迹 /
+   * 法骸). No kill credit, bounty or LP loss; the HUD capsule still counts it resolved, as it is gone from the round's list.
+   */
+  withdrawEnemy(e, reason = 'withdrawn') {
+    if (!e || !e.alive || e.side !== 'enemy') return false;
+    if (e.inTotal) {
+      this.killedInTotal++;
+      const pp = this._pp(e.ownerId);
+      if (pp) pp.killedInTotal++;
+    }
+    this._remove(e, reason);
+    return true;
+  }
+
   _remove(unit, reason, killer = null, permanent = false, dying = false) {
     this._cutAttackStand(unit);
     unit.alive = false;

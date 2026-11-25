@@ -127,6 +127,26 @@ test('a time limit inside the Sarkaz replacement wait times out without spawning
   assert.equal(h.b.errorCount, 0);
 });
 
+test('mutant sand beasts and rock spiders split into their data count of excrescences / tumors on death', () => {
+  // (fork) upstream 0.4.0 gave only the giant spider a death kit; the others split into nothing.
+  for (const [key, n] of [['enemy_1131_sbeast', 2], ['enemy_1131_sbeast_2', 2], ['enemy_1132_sarchn', 3], ['enemy_1132_sarchn_2', 3]]) {
+    const h = field(), parent = spawn(h, key);
+    h.step();
+    h.b.kill(parent, null);
+    h.run(0.1);
+    assert.equal(h.b.finished, false, key);
+    h.run(0.2);
+    const childKey = raw.enemies[key].talents.bbStr['deathrattle.enemy_key'];
+    assert.equal(h.enemies().filter(e => e.defId === childKey).length, n, key);
+    assert.equal(h.b.errorCount, 0);
+  }
+  const h = field(false), parent = spawn(h, 'enemy_1132_sarchn');
+  h.step();
+  h.b.leak(parent);
+  h.run(0.5);
+  assert.equal(h.enemies().filter(e => e.defId === 'enemy_1137_plasm').length, 0, 'no split on a leak');
+});
+
 test('shared delayed replacement also holds the last rock spider until all four children spawn', () => {
   for (const key of ['enemy_1133_harchn', 'enemy_1133_harchn_2']) {
     const h = field(), parent = spawn(h, key);

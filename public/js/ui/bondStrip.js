@@ -53,7 +53,8 @@ function OwnerTag({ owner }) {
 /**
  * (fork) As many bond slots as fit the strip's width, the rest behind a 「+N」 button that drops a compact grid of them
  * under the strip (the user's pick of 2026-11-10: the scrolling strip's bar looked ugly and the full line blocked the top
- * of the screen). No scrolling: the fit is measured from the real width (fewer on phones) and again on every resize.
+ * of the screen). No scrolling: the fit is measured from the real width (fewer on phones), with every slot laid out
+ * (see `measuring`), and again on every resize.
  * Tap outside, Esc or the button closes the grid; a bond opened from it closes it too, and the button then wears the
  * open ring. `children`: the whole `.bstrip` element as BondStrip builds it (whose it is, the owner tag, every slot with its
  * data-bond in the strip's order); this keeps its leading non-bond children and trims the slots to what fits.
@@ -68,41 +69,60 @@ function FitStrip({ children, openId }) {
   const [open, setOpen] = useState(false);
   const [right, setRight] = useState(0);
   const total = items.length;
+  // (fork) Measured with every slot laid out, then trimmed. The 规程 HUD centres the row at `width: max-content`
+  // (game-reghud.css), so the wrap's width follows what it shows: measuring a trimmed strip only ever shrank it (one
+  // or two discs and 「+N」 a few rounds in, David's playtest of 2026-11-25). `measuring` renders the whole strip for one
+  // layout pass (useLayoutEffect: never painted); the wrap is then as wide as the room allows, whatever the layout.
+  const [measuring, setMeasuring] = useState(0);
+  const remeasure = () => setMeasuring((m) => m + 1);
+  const sig = `${lead.length}|${items.map((i) => i.id).join(',')}`;
+  const shown = measuring ? total : fit;
+  useLayoutEffect(() => { remeasure(); }, [sig]);
   useLayoutEffect(() => {
+    if (!measuring) return;
     const wrap = wrapRef.current, strip = stripRef.current;
-    if (!wrap || !strip) return;
-    const measure = () => {
-      const w = wrap.clientWidth, slot = strip.querySelector('.bslot');
-      if (!w || !slot) return; // collapsed (hidden) or not laid out yet
-      const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
-      const slotW = slot.getBoundingClientRect().width + gap;
-      const ownerEl = strip.querySelector('.bstrip__owner');
-      const room = w - (ownerEl ? ownerEl.getBoundingClientRect().width + gap : 0);
-      let n = Math.floor((room + gap) / slotW);
-      if (n < total) {
-        const moreW = (moreRef.current?.getBoundingClientRect().width || slotW - gap) + gap;
-        n = Math.max(1, Math.floor((room - moreW + gap) / slotW));
-      }
-      n = Math.min(total, n);
-      setFit((old) => (old === n ? old : n));
-    };
-    measure();
-    // measured a frame after the observer delivers, so a re-render cannot loop it ("ResizeObserver loop completed …")
-    let frame = null;
-    const observer = new ResizeObserver(() => {
+    const w = wrap?.getBoundingClientRect().width || 0, slot = strip?.querySelector('.bslot');
+    setMeasuring(0);
+    if (!w || !slot) return; // collapsed (hidden) or not laid out yet: the observer below measures it once shown
+    const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
+    const slotW = slot.getBoundingClientRect().width + gap;
+    const ownerEl = strip.querySelector('.bstrip__owner');
+    const room = w - (ownerEl ? ownerEl.getBoundingClientRect().width + gap : 0);
+    const eps = 0.5 / slotW; // sub-pixel rounding must not drop the last slot of a strip that fits exactly
+    let n = Math.floor((room + gap) / slotW + eps);
+    if (n < total) {
+      const moreW = (moreRef.current?.getBoundingClientRect().width || slotW - gap) + gap;
+      n = Math.max(1, Math.floor((room - moreW + gap) / slotW + eps));
+    }
+    n = Math.min(total, n);
+    setFit((old) => (old === n ? old : n));
+  }, [measuring]);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    // Re-measured when the viewport changes (rem scale, orientation) or the strip is shown again; not on the wrap's own
+    // width changes, which our trimming causes. A frame later, so a re-render cannot loop the observer.
+    let frame = null, wasHidden = !wrap.clientWidth;
+    const later = () => {
       if (frame !== null) return;
-      frame = requestAnimationFrame(() => { frame = null; measure(); });
+      frame = requestAnimationFrame(() => { frame = null; remeasure(); });
+    };
+    const observer = new ResizeObserver(() => {
+      const hidden = !wrap.clientWidth;
+      if (wasHidden && !hidden) later();
+      wasHidden = hidden;
     });
     observer.observe(wrap);
-    return () => { observer.disconnect(); if (frame !== null) cancelAnimationFrame(frame); };
-  }, [total, lead.length]);
-  const extras = items.slice(fit);
+    window.addEventListener('resize', later);
+    return () => { observer.disconnect(); window.removeEventListener('resize', later); if (frame !== null) cancelAnimationFrame(frame); };
+  }, []);
+  const extras = items.slice(shown);
   const isOpen = open && extras.length > 0;
   useLayoutEffect(() => {
     if (!isOpen) return;
     const wrap = wrapRef.current, btn = moreRef.current;
     if (wrap && btn) setRight(Math.max(0, wrap.clientWidth - (btn.offsetLeft + btn.offsetWidth)));
-  }, [isOpen, fit]);
+  }, [isOpen, shown]);
   useLayoutEffect(() => { // layout, not effect: the listeners are in place before the next press (useEffect waits for a paint)
     if (!isOpen) return;
     const away = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
@@ -116,7 +136,7 @@ function FitStrip({ children, openId }) {
   }, [isOpen]);
   const extraOpen = !!openId && extras.some((i) => i.id === openId);
   return html`<div class="bstrip-fit" ref=${wrapRef}>
-    ${cloneElement(strip, { ref: stripRef }, ...lead, ...items.slice(0, fit).map((i) => i.node))}
+    ${cloneElement(strip, { ref: stripRef }, ...lead, ...items.slice(0, shown).map((i) => i.node))}
     ${extras.length ? html`<button type="button" ref=${moreRef} class=${cx('bstrip__more', isOpen && 'is-on', extraOpen && 'is-open')}
         aria-expanded=${isOpen} aria-controls="bstrip-grid" data-count=${extras.length}
         aria-label=${t('更多盟约（{n}）', { n: extras.length }) /* en: "{n} more bonds" */} title=${t('更多盟约（{n}）', { n: extras.length })}

@@ -114,3 +114,34 @@ test('all bonds remain reachable: the strip shows what fits, +N opens the rest i
     }
   } finally { await browser.close(); await srv.close(); }
 });
+
+// (fork) The 规程 HUD centres the bond row at `width: max-content` (game-reghud.css): the strip's width then follows the
+// discs it shows, and a fit measured from a trimmed strip only shrank (David's playtest of 2026-11-25: 「+N」 after one or
+// two bonds, fewer each round). The fit must survive bonds coming and going.
+test('规程 layout: the fit does not ratchet down as bonds come and go', { skip: process.env.SP_E2E !== '1' || !hasChrome(), timeout: 90000 }, async () => {
+  const { startServer } = await import('../../server/index.js');
+  const puppeteer = (await import('puppeteer-core')).default;
+  const srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--mute-audio', '--no-sandbox', '--no-proxy-server'] });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.goto(srv.url + '/dev/game-mock.html?shot=1&render=fallback&phase=PREP&version=act3autochess@V3_1');
+    await page.waitForSelector('.bstrip .bond');
+    const setBonds = (n) => page.evaluate(async (n) => {
+      const { data } = await import('/js/data.js');
+      const mock = globalThis.__MOCK__, state = mock.store.get();
+      const bonds = data.list('bonds').slice(0, n).map((b) => ({ bondId: b.bondId, count: 1, tier: 0, active: false, layers: 0 }));
+      mock.store.set({ match: { ...state.match, private: { ...state.match.private, bonds } } });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return data.list('bonds').length;
+    }, n);
+    const shown = () => page.$$eval('.bstrip .bslot', (els) => els.length);
+    const all = await setBonds(99);
+    const first = await shown();
+    assert.ok(first >= Math.min(all, 6), `a 1920 px 规程 strip shows more than a couple of bonds (${first})`);
+    for (const n of [all - 1, 3, all, all - 2, all]) await setBonds(n);
+    assert.equal(await shown(), first, 'the same bonds fit after churn');
+    await page.close();
+  } finally { await browser.close(); await srv.close(); }
+});

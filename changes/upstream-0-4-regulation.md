@@ -17,10 +17,26 @@
 - In 规程, Nymph's ability now adds [Swift] stacks whenever an enemy in her range is Feared (+4 / +8, up to 20 / 40 a battle).
 - Before (upstream 0.4.0): it watched for Frozen instead, so it never added stacks.
 
+### 规程 playtest fixes (2026-11-25)
+
+- Mutant Sand Beasts and Mutant Rock Spiders (and their α) now split into 2 / 3 Originiutant Excrescences (α: Tumors) when defeated, as the Giant Rock Spider already did. Before (upstream 0.4.0): they split into nothing.
+- Focused / Prism Soul Remnants and Infused / Penumbral Soul Husks now pick up Soul Maelstroms that come within 0.25 tiles (up to 3; the Maelstrom leaves the field, no kill and no lost LP). With charges, a Remnant spends them all on a 7.8 s beam along its target's row or column: 40 % ATK Arts damage a second to every operator in a 0.65-wide line, its ATK rising 40 % a second up to +25 % per charge (Prism: 50 %, +200 %, +40 %) [src: PRTS 聚焦魂灵残迹 §天赋与能力; official enemy_database Laser blackboard]. A Husk spends one charge per orbiting fragment. Before (upstream 0.4.0): no pickup, so the Remnant never fired and the Husk summoned fragments for free.
+- Defeated Infused Glacial Originium Slug α and 'Jet' / 'Boom Canisters' now chill the operators around them (10 s Cold) [src: official enemy_database boom.freeze / Boom.freeze; PRTS “喷射罐” §天赋与能力]. Before (upstream 0.4.0): no effect (the Canisters had no blast at all).
+- An Icefield Arts Fighter / Guard's blast now comes 1.2 s after it is defeated, reaches 1.65 tiles and applies 5 s of Cold to operators and other enemies [src: PRTS 冰原卫法者 §天赋与能力]; a second Cold during it freezes as usual. Before (upstream 0.4.0): it froze every operator in reach at once.
+- The bond strip keeps the same number of bonds before its +N button through the match. Before: in the 规程 layout it could drop to one or two bonds and fewer each round, because it measured a row whose width followed what it already showed.
+- A Command switched mid-match (with the dice item) is described in the player's language. Before: in Chinese.
+- 规程 texts say "defeated" where they said "knocked down" (the official EN wording for 被击倒).
+
+### Official effects come with the release art
+
+- `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.
+
 Kind: player
 
 Server cost: none
 
 Operator notes:
 
+- Re-run `npm run assets:release-local` once to get `data/local-fx.json` (the official effects), then turn on Settings → Official Effects.
+- Grand Alliance needs the server started with `SP_LARGE_ROOMS=1`, and is offered on Season 2 only (unchanged from the fork).
 - After pulling, rebuild the unit art the merge touched on a machine with the art (`node tools/fetch-assets.mjs --offline --add-only --refresh-units=<list from npm run merge:generated>`, then `npm run merge:generated -- --rebuilt`).
