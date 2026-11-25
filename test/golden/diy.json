@@ -4956,7 +4956,7 @@
       "hooks": [1,273,5986,500,500,2455,2455,0,162,262,47,45,0,27808,0,33,235,81,1,162,0,0,0],
       "events": {"atk":500,"deploy":38,"die":181,"dmg":2455,"engage":12,"fx":187,"leak":81,"rate":349,"skill":92,"spawn":268},
       "fx": {"aoe":13,"displace":16,"pull":16,"summon":83,"volley":59},
-      "snaps": "674bc903 cb32d146 a340a40a a550afca 4b486796 5042f836 09a46e83 dbc845b7 bfaf5a98 33685420 6b1a96e1 d619b9dc 9d18c0bb 06c0f7b2 4857af0b a653c54f 0dacc465 735e7fa8 16527def 809fe6f3"
+      "snaps": "674bc903 9c2ae60c 00e6e1bd 0901bc1d 8d57dea4 6f3a2f20 864b9ebc fad699d2 18c5338a 0e37f803 7179c471 90eb30cd 629b3a45 2e97b498 6b3b9f01 102bb535 e5f55efd 6319b42b d957c6a9 b501821d"
     },
     "diy-116": {
       "about": "5_diy1_b=ebnhlz/S1/004_ebnhlz 5_diy2_b=ebnhlz/S2/004_ebnhlz 5_diy1_b=ebnhlz/S3/004_ebnhlz 6_diy1_a=ebnhlz/S1 6_diy2_a=ebnhlz/S2 6_diy1_a=ebnhlz/S3 6_diy2_b=ebnhlz/S1 6_diy1_b=ebnhlz/S2 6_diy2_b=ebnhlz/S3 6_diy1_b=ebnhlz/S1/002_ebnhlz 6_diy2_b=ebnhlz/S2/002_ebnhlz 6_diy1_b=ebnhlz/S3/002_ebnhlz",
@@ -5003,7 +5003,7 @@
       "hooks": [1,152,6528,198,198,294,364,9041,24,152,13,13,0,9490,0,24,123,120,1,24,0,2,0],
       "events": {"atk":198,"deploy":29,"die":32,"dmg":364,"engage":12,"fx":100,"leak":120,"rate":9,"skill":26,"spawn":143,"status":43},
       "fx": {"aoe":8,"burst":2,"displace":9,"expose":50,"pull":9,"summon":8,"volley":14},
-      "snaps": "67d9cf3f 192f65bc 0ef845aa 50942bff d53ff954 111b1f4d d7b1938b 9a4fcc1f 41da1f81 46c5aa11 f1368018 889c5756 444e2f8d daefcbfb 743fbb12 fffb63f2 2cd8e81e 5ef10ac3 0ac4fe3f 1e2a9e30 78190c4b fbdaa42a"
+      "snaps": "67d9cf3f 0ce00275 74a6d659 6629b7ec a3668fbb 7ff8a5ce a3384054 869fa8f0 3be0680e a49d5c56 44ced6ff e83d6909 4c1110d5 90a33192 2cd2642f 41908633 ec38e43f 8cf3e9b2 ec11ef52 f86a4d81 c8d8c14a d52a6b1b"
     },
     "diy-117": {
       "about": "6_diy1_b=ebnhlz/S1/003_ebnhlz 6_diy2_b=ebnhlz/S2/003_ebnhlz 6_diy1_b=ebnhlz/S3/003_ebnhlz 6_diy2_b=ebnhlz/S1/004_ebnhlz 6_diy1_b=ebnhlz/S2/004_ebnhlz 6_diy2_b=ebnhlz/S3/004_ebnhlz 5_diy1_a=mgllan/S1 5_diy2_a=mgllan/S2 5_diy1_a=mgllan/S3 5_diy2_b=mgllan/S1 5_diy1_b=mgllan/S2 5_diy2_b=mgllan/S3",
@@ -5068,7 +5068,7 @@
       "hooks": [1,152,6131,512,512,752,980,0,24,135,31,30,0,26904,278,0,114,90,1,24,0,10,0],
       "events": {"atk":512,"deploy":36,"die":45,"dmg":980,"engage":8,"fx":218,"leak":90,"rate":39,"skill":61,"spawn":152,"status":566},
       "fx": {"aoe":8,"burst":10,"coldWind":127,"displace":2,"pull":2,"summon":24,"volley":45},
-      "snaps": "fe19a9a0 d6f2ebb5 282bbe9a 0ed4f1ce c8244d6c 195cad52 44b77eff b929476c 6c37f1ae d4a67cc8 980db621 52fda111 8b9f85b4 9caf5cd8 37672db4 aef19e79 a2192a95 191c8f2a 1c8a4721 f92d0ed3 fa3c79bd"
+      "snaps": "fe19a9a0 682f6fb0 84d4af80 970d9da0 892318a8 267f490b 229b0c32 27f99361 4164d715 c6d83011 a40e09fc d4c339bf 460aacb9 843ff884 43056215 796cdbe4 5a94cd04 84fa98e8 36a2c4a6 19aa0088 72350ffe"
     },
     "diy-118": {
       "about": "5_diy1_b=mgllan/S1/002_mgllan 5_diy2_b=mgllan/S2/002_mgllan 5_diy1_b=mgllan/S3/002_mgllan 5_diy2_b=mgllan/S1/003_mgllan 5_diy1_b=mgllan/S2/003_mgllan 5_diy2_b=mgllan/S3/003_mgllan 6_diy1_a=mgllan/S1 6_diy2_a=mgllan/S2 6_diy1_a=mgllan/S3 6_diy2_b=mgllan/S1 6_diy1_b=mgllan/S2 6_diy2_b=mgllan/S3",
