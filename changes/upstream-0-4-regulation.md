@@ -37,6 +37,7 @@
 
 - Grand Alliance rooms can now be created on any official season, Regulation · Sequence I included (still only when the server runs with `SP_LARGE_ROOMS=1`). The room browser names a room's season when it isn't Season 2. Before: Season 2 only; a room created from the Season 3 lobby could not start.
 - A Season 3 Grand Alliance plays with squads and the scaled pool: the options now reach the separate process that runs another season's matches. An 8-seat all-AI Season 3 match plays to its end with no engine error [src: test/match/version-host.test.js (g)].
+- Outfits for the operators Season 3 added (40 more, 347 in all) and their Elite 2 artwork; the wide room card now frames that artwork instead of zooming into the half-body portrait. Their outfit names still show in Chinese until the English overlay is rebuilt.
 - The effects column's tooltip for an item with a lasting effect (Budget-Savvy Doll) is in the player's language. Before: always in Chinese, in every season.
 
 ### Official effects come with the release art
