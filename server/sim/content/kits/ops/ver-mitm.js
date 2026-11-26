@@ -6,6 +6,10 @@
 // redeploy time. [ASSUMED] wreckage does not survive her own redeploy. [ASSUMED] `mitm_s_2[to_token].hp` 1
 // changes no HP. [ASSUMED] `mode` 1 is the "token stops attacking" already in the skill text. Orthogonal
 // wreck tiles are absolute, not facing-relative.
+// (fork) The car the player placed (a board piece: the tactical point they chose, trait 「选择一次战术点」) IS 樱桃三号:
+// it deploys after her, so the kit used to field a second car of its own beside her, and only that one left wreckage
+// and came back (David's playtest of 2026-11-26). The placed car is adopted when it deploys (the kit's stand-in leaves
+// without wreckage), and a car comes back on the placed piece's tile while that tile is free.
 
 import { num, up } from '../shared/tier1.js';
 import { COLS, beginDp, endDp, kitSkills, posDur, tickDp } from '../shared/version.js';
@@ -66,20 +70,47 @@ function spawnWrecks(battle, owner, car) {
   }
 }
 
+/** The car the player placed for `owner` (a board piece), alive or not, else null. */
+function placedCar(battle, owner) {
+  return battle.allyUnits.find((a) => a.defId === TOKEN && a.uid != null && a.ownerUnit === owner && !a.mem?.mitmWreck) || null;
+}
+
+/** `car` becomes 樱桃三号: the car's talent kit on it (once), and the owner's reinforcement. */
+function adopt(battle, owner, car) {
+  if (!car.mem.mitmAdopted) {
+    car.mem.mitmAdopted = true;
+    carKit(owner).install(battle, car);
+  }
+  owner.mem.mitmCar = car;
+  owner.trait.reinforcement = car;
+}
+
+/** The placed piece's tile while a car may stand there again, else null. */
+function placedTile(battle, owner) {
+  const p = placedCar(battle, owner);
+  const r = p?.homeR ?? p?.tileR, c = p?.homeC ?? p?.tileC;
+  if (!Number.isInteger(r) || !Number.isInteger(c)) return null;
+  if (battle.unitAt(r, c)?.alive || !battle.grid.canStand(r, c) || battle.isReservedTile(r, c)) return null;
+  return [r, c];
+}
+
 function trySpawn(battle, owner) {
   if (!up(owner) || owner.mem.mitmLeave || owner.mem.mitmWait || owner.mem.mitmSweep) return;
+  const placed = placedCar(battle, owner);
+  if (placed && placed.alive && placed.deployed) { adopt(battle, owner, placed); return; }
   if (livingCar(battle, owner)) return;
-  const tile = battle.findTacticalPoint(owner);
+  const tile = placedTile(battle, owner) ?? battle.findTacticalPoint(owner);
   if (!tile) return;
   const car = battle.spawnToken(owner, TOKEN, tile[0], tile[1], { anySource: true, kit: carKit(owner) });
   if (!car) return;
+  car.mem.mitmAdopted = true;
   owner.mem.mitmCar = car;
   owner.trait.reinforcement = car;
   battle.fx('summon', { x: car.x, y: car.y, id: owner.id, token: TOKEN });
 }
 
 function onCarDown(battle, owner, car) {
-  if (owner.mem.mitmSweep || owner.mem.mitmLeave || car.mem?.mitmWreck) return;
+  if (owner.mem.mitmSweep || owner.mem.mitmLeave || car.mem?.mitmWreck || car.mem?.mitmReplaced) return;
   if (owner.mem.mitmCar === car) owner.mem.mitmCar = null;
   if (owner.trait?.reinforcement === car) owner.trait.reinforcement = null;
   spawnWrecks(battle, owner, car);
@@ -210,6 +241,18 @@ function mitm(_bb, chess) {
         if (ctx.unit !== unit) return;
         unit.mem.mitmLeave = true;
         clearOwned();
+      }, { owner: unit });
+      // the player's placed car deploys after her: it takes over from the car the kit fielded meanwhile
+      battle.on('deploy', (ctx) => {
+        const a = ctx.unit;
+        if (!a || a.defId !== TOKEN || a.uid == null || a.ownerUnit !== unit || a.mem?.mitmWreck || !up(unit)) return;
+        const own = unit.mem.mitmCar;
+        if (own && own !== a && own.alive) {
+          own.mem.mitmReplaced = true;
+          battle.retreat(own, { reason: 'retreat', permanent: true });
+        }
+        unit.mem.mitmWait = false;
+        adopt(battle, unit, a);
       }, { owner: unit });
       battle.every(0.5, () => {
         if (!up(unit) || unit.mem.mitmLeave || unit.mem.mitmWait || livingCar(battle, unit)) return;

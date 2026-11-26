@@ -334,6 +334,32 @@ describe('regulation batch 1 kits', { concurrency: 1 }, () => {
     assert.equal(wrecks(h2, m).length, 0);
   });
 
+  test('渡桥 with a placed car: one car (the placed one), wreckage round it, and it returns on its tile', (t) => {
+    // David's playtest 2026-11-26: a second car stood beside her and only that one wrecked / came back
+    use(t);
+    const h = makeBattle({
+      data: new DataSource(DATA), seed: 3, timeLimit: 80, autoFinish: false,
+      units: [
+        { uid: 1, chessId: chessId('char_4147_mitm'), row: 10, col: 3, skillIndex: 0 },
+        { uid: 2, kind: 'token', tokenId: TOKEN, ownerUid: 1, row: 10, col: 5, dir: 'RIGHT' },
+      ],
+    });
+    h.battle.start();
+    const m = h.battle.allyUnits.find((a) => a.defId === chessId('char_4147_mitm'));
+    const placed = h.battle.allyUnits.find((a) => a.defId === TOKEN && a.uid === 2);
+    assert.deepEqual(cars(h, m), [placed]);
+    assert.equal(m.mem.mitmCar, placed);
+    h.battle.kill(placed, null);
+    h.step();
+    const w = wrecks(h, m).map((a) => `${a.tileR},${a.tileC}`).sort();
+    assert.deepEqual(w, ['10,4', '10,6', '11,5', '9,5']);
+    h.run(Number(placed.def.talents.find((x) => x?.bb?.interval)?.bb.interval) + 1);
+    const back = cars(h, m);
+    assert.equal(back.length, 1);
+    assert.deepEqual([back[0].tileR, back[0].tileC], [10, 5]);
+    assert.equal(h.battle.errorCount, 0);
+  });
+
   test('铸铁 S1 heals, S2 regenerates, elite talent pays ASPD and resist after times kills', (t) => {
     const s1 = skillBb('char_333_sidero', 'skcom_heal_self[3]');
     const h = field(t, [{ charId: 'char_333_sidero', row: 10, col: 5, skillIndex: 0 }]);

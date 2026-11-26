@@ -577,6 +577,42 @@ function kitAcpara(ab) {
   }];
 }
 
+/** 大君之触 / 大君之赐 and their elite forms (寄生者's and the heir's spawns): 「难以击倒」 — phys and arts taken
+ *  ×(1 − dmg_res.damage_resistance), always (the talent has no condition) — and 「阻挡该敌人的单位阻挡数上限提升」: the
+ *  unit blocking it gains buff_to_blocker.block_cnt block per such enemy it blocks, up to max_valid_stack_cnt stacks
+ *  (one shared buff on the blocker, counted afresh each tick; the stack count is over every enemy with this talent
+ *  that it blocks). Neither line is flagged SILENCE. */
+const DZOM_BLOCK = 'reg:dzomBlock';
+function kitDzom(ab) {
+  const dr = Math.max(0, Math.min(1, tv(ab, 'dmg_res.damage_resistance', 0)));
+  const per = tv(ab, 'buff_to_blocker.block_cnt', 0);
+  const cap = Math.max(0, Math.floor(tv(ab, 'buff_to_blocker.max_valid_stack_cnt', 0)));
+  const list = [];
+  if (dr > 0) {
+    list.push({
+      hitIn(c) {
+        const ty = c.dmg && c.dmg.type;
+        if (ty !== 'phys' && ty !== 'arts') return;
+        c.dmg.mul *= 1 - dr;
+      },
+    });
+  }
+  if (per !== 0 && cap > 0) {
+    list.push({
+      tick(b, e) {
+        const u = e.blockedBy;
+        if (!u || !u.alive || u.side !== 'ally') return;
+        let n = 0;
+        for (const x of b.enemies) {
+          if (x.alive && x.blockedBy === u && x.mem?.ab?.t && num(x.mem.ab.t['buff_to_blocker.block_cnt']) !== 0) n++;
+        }
+        auraBuff(b, u, DZOM_BLOCK, 0, { blockCnt: per * Math.min(cap, n) }, null, true);
+      },
+    });
+  }
+  return list;
+}
+
 // --- the other new draws --------------------------------------------------------------------------------
 
 /** 假想敌：影役: stealth, and block count −1 on allies in range (one shared buff, so it does not stack). */
@@ -668,6 +704,10 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1431_lrmzrd: kitLrmzrd,
   enemy_1431_lrmzrd_2: same(kitLrmzrd),
   enemy_9040_accrit: kitAccrit,
+  enemy_1220_dzoms: kitDzom,
+  enemy_1220_dzoms_2: same(kitDzom),
+  enemy_1221_dzomg: kitDzom,
+  enemy_1221_dzomg_2: same(kitDzom),
   enemy_1222_dpvt: kitDeathrattle,
   enemy_1222_dpvt_2: same(kitDeathrattle),
   enemy_1223_dmech: kitDeathrattle,

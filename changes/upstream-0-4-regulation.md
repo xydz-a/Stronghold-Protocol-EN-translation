@@ -40,6 +40,11 @@
 - Outfits for the operators Season 3 added (40 more, 347 in all) and their Elite 2 artwork; the wide room card now frames that artwork instead of zooming into the half-body portrait. Their outfit names still show in Chinese until the English overlay is rebuilt.
 - The effects column's tooltip for an item with a lasting effect (Budget-Savvy Doll) is in the player's language. Before: always in Chinese, in every season.
 
+### 规程 playtest fixes, part 3 (2026-11-26)
+
+- Mitm's placed Cherry-3 is her only car: it leaves the wreckage when defeated, and the replacement car comes back on the tile where it was placed. Before: a second car appeared next to her, and only that second car left wreckage or came back.
+- Touch of the Sanguinarch, Gift of the Sanguinarch, Touch of Benevolence and Gift of Magnanimity take 90% less physical and arts damage. The unit blocking them gets +1 block per one it blocks, up to 6. Before: they had neither [src: enemies.json talents dmg_res / buff_to_blocker].
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.
