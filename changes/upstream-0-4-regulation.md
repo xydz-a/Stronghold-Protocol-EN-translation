@@ -44,6 +44,7 @@
 
 - Mitm's placed Cherry-3 is her only car: it leaves the wreckage when defeated, and the replacement car comes back on the tile where it was placed. Before: a second car appeared next to her, and only that second car left wreckage or came back.
 - Touch of the Sanguinarch, Gift of the Sanguinarch, Touch of Benevolence and Gift of Magnanimity take 90% less physical and arts damage. The unit blocking them gets +1 block per one it blocks, up to 6. Before: they had neither [src: enemies.json talents dmg_res / buff_to_blocker].
+- Enemies that appear when another one is defeated (the Sanguinarch spawns from Sarkaz Heirbearers, split children, the Parasite's gift) cost LP when they leak. They still don't count toward the wave's enemy total. Before: they leaked for free.
 
 ### Official effects come with the release art
 

@@ -2036,7 +2036,7 @@
       "time": 85.33,
       "ticks": 2560,
       "reason": "cleared",
-      "killed": 6,
+      "killed": 10,
       "total": 6,
       "unspawned": 0,
       "bossHpLeft": null,
@@ -2044,11 +2044,11 @@
       "errors": {"count":0,"kinds":[]},
       "players": {
         "p1": {
-          "killed": 6,
+          "killed": 10,
           "total": 6,
-          "perfect": true,
-          "leaks": 0,
-          "leaksUncounted": 1,
+          "perfect": false,
+          "leaks": 1,
+          "leaksUncounted": 0,
           "coins": 0,
           "dmg": 46698,
           "bossDmg": 0,
@@ -2084,7 +2084,7 @@
       "hooks": [1,26,2560,180,173,362,381,22,11,19,19,26,0,10803,50,8,11,1,1,12,2,0,0],
       "events": {"atk":253,"deploy":15,"die":18,"dmg":376,"engage":5,"fx":77,"heal":22,"layer":2,"leak":1,"rate":4,"skill":52,"spawn":26,"status":73},
       "fx": {"aoe":27,"buff":1,"garrison":1,"link":1,"shield":2,"summon":12,"telegraph":7,"thorns":5,"tick":21},
-      "snaps": "c04544fb ee1aac4b 4ffa98fb df594a34 dcb34365 465fefdb 0a85e80f dd4b094e 4344e9e6"
+      "snaps": "c04544fb ee1aac4b e9ec7d7c 71139f34 eba8a0f4 8b05256b 341913b6 c57229bc b7fb73c7"
     },
     "bond-victoriaShip-high": {
       "about": "维多利亚 high: tier 2 layers 999; chess_char_4_14_b chess_char_3_22_b chess_char_1_05_b chess_char_2_09_b chess_char_2_10_b chess_char_3_15_b chess_char_5_21_b chess_char_5_23_b token_10032_jesca2_jckshd token_10041_cathy_catsld token_10041_cathy_catsld token_10066_closur_ourbase token_10026_bgsnow_subbow",

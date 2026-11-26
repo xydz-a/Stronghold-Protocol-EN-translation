@@ -758,14 +758,14 @@
       "time": 200,
       "ticks": 6000,
       "reason": "forced",
-      "killed": 18,
+      "killed": 26,
       "total": 14,
       "unspawned": 0,
       "bossHpLeft": 6675364,
       "rngDraws": 214,
       "errors": {"count":0,"kinds":[]},
       "players": {
-        "p1": {"killed":18,"total":14,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":2048837,"bossDmg":1354853,"heal":64841,"deaths":13,"layerGains":{}},
+        "p1": {"killed":26,"total":14,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":2048837,"bossDmg":1354853,"heal":64841,"deaths":13,"layerGains":{}},
         "p2": {"killed":0,"total":0,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":756498,"bossDmg":177782,"heal":61735,"deaths":18,"layerGains":{}}
       },
       "units": [
@@ -852,7 +852,7 @@
         "veenBounce": 10,
         "veenVolley": 2
       },
-      "snaps": "9e459479 e0e7e146 8541bde6 e589a317 23181d84 9b073b79 67407a70 f56ca7b2 af08c4cf 3d78d7ec b854e24a dc670eaf 0b396301 275f90c2 fd8ddc11 ec4b6270 10038745 2d04d0b6 c41bc467 e5ce75a1"
+      "snaps": "9e459479 e0e7e146 16da6798 0ded03f0 372f6499 e6a77c6c 4887aadd bd419a25 6ee98f0c de04e5f8 6aac25ec c7cedb9b 42e84872 dd9a14d8 f76e0e3b 8efdceef 5af34241 80c26d98 c46a9a4a 94fa296e"
     },
     "hidden-boss_8-solo": {
       "about": "假想敌：胄 solo pool 2052000: chess_char_4_13_b chess_char_4_14_b chess_char_4_16_b chess_char_4_15_b chess_char_4_21_b chess_char_4_19_b chess_char_4_12_b chess_char_4_17_b chess_char_4_18_b chess_char_4_20_b token_10032_jesca2_jckshd token_10027_ironmn_pile3 token_10027_ironmn_pile3",
@@ -1908,14 +1908,14 @@
       "time": 200,
       "ticks": 6000,
       "reason": "forced",
-      "killed": 10,
+      "killed": 18,
       "total": 10,
       "unspawned": 0,
       "bossHpLeft": 6552029,
       "rngDraws": 1233,
       "errors": {"count":0,"kinds":[]},
       "players": {
-        "p1": {"killed":10,"total":10,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":496669,"bossDmg":288319,"heal":83880,"deaths":13,"layerGains":{}},
+        "p1": {"killed":18,"total":10,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":496669,"bossDmg":288319,"heal":83880,"deaths":13,"layerGains":{}},
         "p2": {"killed":0,"total":0,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":0,"dmg":877280,"bossDmg":569652,"heal":36319,"deaths":11,"layerGains":{}}
       },
       "units": [
@@ -1963,7 +1963,7 @@
       "hooks": [1,77,6000,845,865,3229,3841,15590,47,52,69,61,106,25364,848,39,20,0,1,58,0,28,0],
       "events": {"atk":1217,"cast":14,"deploy":51,"die":52,"dmg":3509,"engage":17,"fx":1541,"heal":225,"rate":281,"skill":130,"spawn":54,"status":595},
       "fx": {"anchor":6,"aoe":33,"bandage":3,"beam":2,"buff":2,"burst":28,"crit":12,"displace":3,"downed":4,"drone":451,"droneLock":15,"drones":3,"garrisonGrant":2,"iceSpike":47,"logosLexicon":45,"revive":4,"shield":2,"sp":17,"splash":106,"summon":11,"sunBurst":3,"talent":3,"teleport":90,"thorns":5,"tick":367,"tide":10,"undying":2,"weightless":5,"zone":260},
-      "snaps": "de442b31 150d90a9 4b154e68 6777085e a770c9c5 9e815764 98804b61 e1631acf cf17e9b1 635df852 43b9ed86 93e490b1 36807260 ba8a7f6c 33aa9b8a 2dbb38e5 39c83972 ed5864cd ac4877f9 8997ae5b"
+      "snaps": "de442b31 4971aab4 fa42e3a7 f8182de7 5af37b8e 49f97214 164630e6 520c61ef 359b92eb ba25c47e 1450df93 b15b3c7b bdaebdc9 5aa25b95 8ed686a5 94300fe2 ca97b08c e64a8458 e0063ccb c77f16ff"
     },
     "hidden-boss_16-solo": {
       "about": "假想敌：鳍 solo pool 1852500: chess_char_6_15_b chess_char_6_14_b chess_char_6_16_b chess_char_6_13_b chess_char_6_09_b chess_char_6_10_b chess_char_6_11_b chess_char_6_12_b chess_char_6_17_b chess_char_6_18_b token_10069_mcnist_mcgraf",

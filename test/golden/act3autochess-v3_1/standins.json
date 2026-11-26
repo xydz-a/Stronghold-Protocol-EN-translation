@@ -655,14 +655,14 @@
       "time": 183.1,
       "ticks": 5493,
       "reason": "cleared",
-      "killed": 158,
+      "killed": 168,
       "total": 158,
       "unspawned": 0,
       "bossHpLeft": null,
       "rngDraws": 842,
       "errors": {"count":0,"kinds":[]},
       "players": {
-        "p1": {"killed":158,"total":158,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":8,"dmg":1492992,"bossDmg":0,"heal":9479,"deaths":4,"layerGains":{"preciShip":32}}
+        "p1": {"killed":168,"total":158,"perfect":true,"leaks":0,"leaksUncounted":0,"coins":8,"dmg":1492992,"bossDmg":0,"heal":9479,"deaths":4,"layerGains":{"preciShip":32}}
       },
       "units": [
         ["p1",1,"op","chess_char_5_17_b",2,"uniequip_002_acfend",3371,1,2,0,0,0,0,0,0],
@@ -696,7 +696,7 @@
       "hooks": [1,182,5493,658,658,1437,1780,698,172,172,33,32,0,24548,211,49,168,0,1,172,4,0,0],
       "events": {"atk":858,"bounty":4,"deploy":14,"die":172,"dmg":1780,"engage":8,"fx":129,"heal":176,"layer":4,"rate":139,"skill":67,"spawn":180,"status":220},
       "fx": {"dodge":1,"dp":39,"garrison":4,"slash":81,"summon":4},
-      "snaps": "22a661a6 b8f667bc 0229821c a4a282bd 50a1cc8d 132d3e12 4677e52d 943c5cbc ec700364 ed15200c 2515455c ebcfbeed 1ac4d72d 04d75a14 99404326 8d50f67c ad2dad28 7b6e974e e3b45bc7"
+      "snaps": "22a661a6 b8f667bc 0229821c 09103d6c 1bf60c58 af131c12 3ad1134c 25356529 274a11b8 a2a50743 32f79ec2 a53a4d06 278284f8 17590cc8 c49ff869 a1ed88be 46c0b88f 0104f16a f6735dc4"
     },
     "standin-11": {
       "about": "elite band 7 as stand-ins: chess_char_6_04_b→char_617_sharp2 chess_char_6_01_b→char_615_acspec chess_char_6_05_b→char_601_cguard chess_char_5_25_b→char_611_acnipe chess_char_6_02_b→char_604_ccast chess_char_6_03_b→char_614_acsupo chess_char_6_06_b→char_612_accast chess_char_6_07_b→char_614_acsupo chess_char_6_08_b→char_612_accast chess_char_6_09_b→char_604_ccast chess_char_6_10_b→char_604_ccast chess_char_6_11_b→char_614_acsupo",
@@ -710,7 +710,7 @@
       "time": 230,
       "ticks": 6900,
       "reason": "timeout",
-      "killed": 29,
+      "killed": 45,
       "total": 89,
       "unspawned": 0,
       "bossHpLeft": null,
@@ -718,7 +718,7 @@
       "errors": {"count":0,"kinds":[]},
       "players": {
         "p1": {
-          "killed": 29,
+          "killed": 45,
           "total": 89,
           "perfect": false,
           "leaks": 60,
@@ -763,7 +763,7 @@
       "hooks": [1,132,6900,395,395,908,975,2665,69,128,15,17,0,4898,2393,2,105,59,1,69,28,1,0],
       "events": {"atk":510,"bounty":3,"cast":8,"deploy":27,"die":69,"dmg":975,"engage":10,"fx":20,"heal":169,"layer":28,"leak":59,"rate":59,"skill":38,"spawn":117,"status":481},
       "fx": {"aoe":2,"burst":1,"dodge":5,"garrisonGrant":1,"sp":1,"summon":10},
-      "snaps": "4450cf2b a2946728 40dbf696 45cc2410 8fc1bdaa 777c7202 4327eaf3 0232ef27 51fde113 9a2919f7 c847d4b8 d004a4b5 b4e048eb 43b0971f 5709dda6 518602c8 4b98f968 895d1499 c494b95d a35463b3 aac995d0 74e17f79 a38a30c9"
+      "snaps": "4450cf2b ac44440c 1ecfd849 49bf00c7 945d29f0 250340f0 81965faa 6a753f76 079a8a28 e75d6462 f4275913 865b9e94 9bb038a0 2cc4e7fe e2989ad8 d763ff5a 18eccc27 84bac1d4 009a5d82 bc993d3e 45b0bef5 d78cfa77 2c8c111b"
     },
     "standin-12": {
       "about": "elite band 7 as stand-ins: chess_char_6_20_b→char_610_acfend chess_char_6_19_b→char_608_acpion chess_char_6_13_b→char_609_acguad chess_char_6_14_b→char_609_acguad chess_char_6_16_b→char_609_acguad chess_char_6_17_b→char_612_accast chess_char_6_18_b→char_611_acnipe",

@@ -49,7 +49,7 @@ function replaceLater(b, e, key, delay, n = 1) {
   if (!key || !(n > 0)) return;
   const pos = [e.y, e.x];
   const route = remainingRoute(e);
-  const spawn = () => spawnChildren(b, e, key, n, { countInTotal: false, pos, route });
+  const spawn = () => spawnChildren(b, e, key, n, { pos, route });
   if (!(delay > 0)) { spawn(); return; }
   // Keep an otherwise empty field alive until its replacement arrives; ordinary visual timers must not do so.
   b.after(delay, spawn, { holdsBattle: true });
@@ -500,7 +500,7 @@ function kitDsfull(ab) {
       if (!key) return;
       const pos = [e.y, e.x];
       const route = remainingRoute(e);
-      const kids = spawnChildren(b, e, key, cnt, { countInTotal: false, pos, route });
+      const kids = spawnChildren(b, e, key, cnt, { pos, route });
       for (let i = 0; i < kids.length; i++) {
         b.addBuff(kids[i], { key: 'reg:fast', persist: true, mods: { moveMul: mul } });
       }
@@ -552,7 +552,7 @@ function kitHarchn(ab) {
       const n = bb(sk, 'cnt', 1);
       const pos = [e.y, e.x];
       const route = remainingRoute(e);
-      spawnChildren(b, e, k, n, { countInTotal: false, pos, route });
+      spawnChildren(b, e, k, n, { pos, route });
     }, { sil: true }),
   ];
 }
@@ -572,7 +572,7 @@ function kitAcpara(ab) {
       if (c.reason !== 'killed' || !v || v === e || v.side !== 'enemy' || !key) return;
       if (v.defId === key) return;
       if (hypot(v.x - e.x, v.y - e.y) > radius + 1e-9) return;
-      spawnChildren(b, e, key, 1, { countInTotal: false, pos: [v.y, v.x], route: remainingRoute(e) });
+      spawnChildren(b, e, key, 1, { pos: [v.y, v.x], route: remainingRoute(e) });
     },
   }];
 }

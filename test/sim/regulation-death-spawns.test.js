@@ -164,3 +164,21 @@ test('shared delayed replacement also holds the last rock spider until all four 
     assert.equal(h.b.errorCount, 0);
   }
 });
+
+test('a leaked death replacement costs LP like any enemy, outside the wave count', () => {
+  // (fork) David's playtest 2026-11-26: the 大君之触 / 之赐 from a 子裔's death took no LP when they leaked
+  const h = makeBattle({ content: 'generic', extraContent: [enemiesMod], defs: { enemies: raw.enemies }, autoFinish: false, timeLimit: 30,
+    players: [{ playerId: 'p1', seat: 0, side: 'L', colOffset: 0, units: [] }] });
+  const parent = spawn(h, 'enemy_1222_dpvt');
+  h.step();
+  h.b.kill(parent, null);
+  h.run(1.1);
+  const child = h.enemies().find(e => e.defId === 'enemy_1220_dzoms');
+  assert.ok(child);
+  assert.equal(child.counted, true);
+  assert.equal(child.inTotal, false, 'not in the wave capsule');
+  h.b.leak(child);
+  const leaked = h.b.result().players?.p1?.leaked ?? h.b._pp(child.ownerId)?.leaked ?? [];
+  assert.equal(leaked.filter(l => l.enemyKey === 'enemy_1220_dzoms' && l.counted !== false).length, 1);
+  assert.equal(h.b.errorCount, 0);
+});
