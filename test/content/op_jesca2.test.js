@@ -356,7 +356,8 @@ test('规程 涤火杰西卡: the record TAKE_DAMAGE S3 casts once an enemy is i
   const { loadData } = await import('../../server/data.js');
   const { DataSource } = await import('../../server/sim/simdata.js');
   const { setGameData } = await import('../../server/sim/content/support/index.js');
-  const DATA = loadData(new URL('../../data/versions/act3autochess-v3_1', import.meta.url).pathname, { log: { warn() {}, error() {}, info() {} } });
+  const { fileURLToPath } = await import('node:url');
+  const DATA = loadData(fileURLToPath(new URL('../../data/versions/act3autochess-v3_1', import.meta.url)), { log: { warn() {}, error() {}, info() {} } });
   assert.equal(DATA.chess.chess_char_4_14_a.skill.trigger.rule, 'TAKE_DAMAGE');
   setGameData(DATA);
   t.after(() => setGameData(null));
