@@ -54,6 +54,7 @@
 - Light / Heavy Rapid Crossbowmen fire their Straight Strike: 3 bolts at the first unit in their row or column, at any distance. Before: they had no ability, and with no range they never attacked [src: BWIKI 速射劲弩手].
 - Mateo's Guard's two bombs reach the first unit in line at any distance and blast a 1.1 radius around it. Before: the blast radius was read as its reach, so it fired only at units within 1.1 tiles [src: BWIKI 马特奥的近卫].
 - The Impetuous Grenadier throws one bomb down each of the four directions the first time it is hit while unblocked (200% ATK, 1.1 radius), then speeds up and loses 2 weight. Before: it had no ability.
+- Sarkaz Heirbearer Bombardiers / Annihilators fire delayed shells. Each attack lands where its target stands and explodes 4 s later, dealing the attack's physical damage within 1.1 tiles. Before: an ordinary ranged hit [src: BWIKI 萨卡兹子裔毁击者].
 - Divicellular Hoarders split once below half HP: one copy at the same HP ratio, which does not split again [src: BWIKI 异光体集养者].
 - Jessica the Liberated casts her S3 once an enemy is within its range, as she already did in the other seasons. Season 3's data triggers it only when she takes damage, and her taunting Mobile Shield takes most hits, so she cast it seemingly at random (a deliberate change from the official trigger).
 

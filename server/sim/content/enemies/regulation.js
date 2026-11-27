@@ -498,7 +498,26 @@ function kitDeathrattle(ab) {
 function kitDthrowDeath(ab) {
   const key = sv(ab.tS, 'Attack.enemy_key');
   const delay = tv(ab, 'Attack.delay', 1);
-  return [{ death(c, b, e) { if (c.reason === 'killed') replaceLater(b, e, key, delay); } }];
+  // 「远程攻击，攻击时射出会延时爆炸的弹药，造成范围物理伤害」: its normal attack lands a shell instead of hitting; the shell
+  // explodes attack@projectile_delay_time s later, its attack's damage (phys) to every unit within
+  // attack@projectile_radius of where it landed [src: BWIKI 萨卡兹子裔毁击者 「攻击在延迟4s后对目标半径1.1范围内所有我方单位造成物理
+  // 伤害」]. (fork) Before: an ordinary ranged hit (David's playtest of 2026-11-26).
+  const fuse = tv(ab, 'Attack.attack@projectile_delay_time', 0);
+  const radius = tv(ab, 'Attack.attack@projectile_radius', 1.1);
+  return [{
+    death(c, b, e) { if (c.reason === 'killed') replaceLater(b, e, key, delay); },
+    hitOut(c, b, e) {
+      if (!(fuse > 0) || !c.dmg || !c.dmg.isAttack || c.dmg.cancel || !c.target) return;
+      const amount = c.dmg.amount * (Number.isFinite(c.dmg.mul) ? c.dmg.mul : 1);
+      const x = c.target.x, y = c.target.y;
+      c.dmg.cancel = true;
+      b.fx('zone', { x, y, radius, dur: fuse, id: e.id, skill: 'dthrow:shell' });
+      b.after(fuse, () => {
+        for (const u of areaAllies(b, e, x, y, radius)) hurt(b, e, u, amount, 'phys', { isSkill: false, tags: ['dthrow:shell'] });
+        b.fx('blast', { x, y, r: radius, id: e.id });
+      });
+    },
+  }];
 }
 
 /** Bone defender: reuse the stationary Blood Amber path already used by the bone torturer. */

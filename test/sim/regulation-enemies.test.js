@@ -416,3 +416,25 @@ test('诡核集养者 splits once below half health: one copy at its HP ratio, w
 });
 
 function hypot2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+test('萨卡兹子裔轰击者 / 毁击者: the attack lands a shell that blasts 1.1 around the spot 4 s later', () => {
+  // (fork) David's playtest 2026-11-26; BWIKI 萨卡兹子裔毁击者 「攻击在延迟4s后对目标半径1.1范围内所有我方单位造成物理伤害」
+  for (const key of ['enemy_1361_dthrow', 'enemy_1361_dthrow_2']) {
+    const t = V.enemies[key].talents.bb;
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 8 }, { chessId: 't_gun', row: 10, col: 8 }] });
+    const e = put(h, key, [9, 9.6]);
+    h.step(1);
+    const [a, b] = h.allies();
+    const ha = a.hp, hb = b.hp;
+    const t0 = e.lastAttackAt;
+    assert.ok(h.runUntil(() => e.lastAttackAt !== t0, 10), `${key}: fires`);
+    h.run(0.5);
+    assert.equal(a.hp, ha, 'no direct hit');
+    h.run(t['Attack.attack@projectile_delay_time'] - 1);
+    assert.equal(a.hp, ha, 'not before the fuse');
+    h.run(1.2);
+    assert.ok(a.hp < ha, 'the blast');
+    assert.ok(b.hp < hb, 'its neighbour inside 1.1');
+    assert.equal(h.b.errorCount, 0);
+  }
+});
