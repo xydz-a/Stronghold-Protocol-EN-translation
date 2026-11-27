@@ -730,15 +730,23 @@ export function installArcaneExtra(battle) {
     if (engine > 0 && Math.abs(official - engine) > 1e-9) mods.artsTakenMul = official / engine;
     S.passiveBuff(battle, t, 'bond:arcane:res', mods);
   });
-  battle.on('statusApplied', (c) => {
-    if (!c || c.status !== 'stealth' || !c.target || c.target.side !== 'enemy') return;
+  // 「【奥术】干员攻击范围内敌人的隐匿效果失效」: a reveal (反隐, flag `reveal`) held on every stealthed enemy inside the attack
+  // range of a field 奥术 member of a player at 3, refreshed each 0.25 s while it stays there. (fork) Before: the stealth was
+  // removed only when it was applied inside a range, so an enemy born stealthed that walked in later kept it (David's
+  // playtest of 2026-11-26).
+  const ARCANE_REVEAL = 'bond:arcane:reveal';
+  battle.every(0.25, () => {
     for (const p of battle.players || []) {
       const pid = p.playerId;
+      if (!S.bondActive(battle, pid, 'arcaneShip')) continue;
       if (!reached(battle, pid, 'arcaneShip', bondBb('arcaneShip', K.arcane).power_bond_char_cnt)) continue;
       const members = S.bondMembers(battle, pid, 'arcaneShip', { fieldOnly: true });
-      if (members.some((m) => S.inRange(m, c.target))) {
-        battle.removeStatus(c.target, 'stealth');
-        return;
+      if (!members.length) continue;
+      for (const e of battle.enemies) {
+        if (!e.alive || !e.s.flags.stealth) continue;
+        if (members.some((m) => m.alive && m.deployed && S.inRange(m, e))) {
+          battle.addBuff(e, { key: ARCANE_REVEAL, duration: 0.35, refresh: 'replace', flags: { reveal: true } });
+        }
       }
     }
   });

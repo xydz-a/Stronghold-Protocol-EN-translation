@@ -351,3 +351,24 @@ test('modules: SPT-X reveals the stealthed enemies of her range (stages 1 and 3)
     done(h);
   }
 });
+
+test('规程 涤火杰西卡: the record TAKE_DAMAGE S3 casts once an enemy is in range, as in the other seasons (owner decision 2026-11-26)', async (t) => {
+  const { loadData } = await import('../../server/data.js');
+  const { DataSource } = await import('../../server/sim/simdata.js');
+  const { setGameData } = await import('../../server/sim/content/support/index.js');
+  const DATA = loadData(new URL('../../data/versions/act3autochess-v3_1', import.meta.url).pathname, { log: { warn() {}, error() {}, info() {} } });
+  assert.equal(DATA.chess.chess_char_4_14_a.skill.trigger.rule, 'TAKE_DAMAGE');
+  setGameData(DATA);
+  t.after(() => setGameData(null));
+  const h = makeBattle({ data: new DataSource(DATA), seed: 3, timeLimit: 30, autoFinish: false, units: [{ uid: 1, chessId: 'chess_char_4_14_a', row: 10, col: 3 }] });
+  h.battle.start();
+  const u = h.battle.allyUnits.find((a) => a.defId === 'chess_char_4_14_a');
+  assert.deepEqual(u.skill.rules, ['TAKE_DAMAGE', 'SEARCH', 'ACTIVE_RANGE'], 'the other seasons\' list');
+  u.skill.setSpTotal(999);
+  h.run(1);
+  assert.equal(u.skill.active, false, 'no enemy: no cast');
+  h.spawn('enemy_1000_gopro_2', { pos: [10, 5], mods: { speedMul: 0, hpMul: 1000, atkMul: 0 } });
+  h.run(2);
+  assert.equal(u.skill.active, true, 'an enemy in range, no damage taken: cast');
+  assert.equal(h.battle.errorCount, 0);
+});

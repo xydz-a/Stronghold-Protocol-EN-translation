@@ -7,12 +7,11 @@
 // Official numbers come from the built enemy record (talents / skills). Points with no blackboard are marked [ASSUMED].
 
 import { COLS } from '../constants.js';
-import { DIR_VEC } from '../dir.js';
 import { hypot } from '../detmath.js';
 import {
-  hurt, elem, areaAllies, allTargets, remainingRoute, lpLoss, canCast, castSlot, watchDeaths,
+  hurt, elem, areaAllies, allTargets, lpLoss, canCast, castSlot, watchDeaths,
 } from './enemies/helpers.js';
-import { skill, blinkForward } from './enemies/archetypes.js';
+import { skill } from './enemies/archetypes.js';
 
 const MECH = 'enemy_9029_acfnc';
 const MECH_2 = 'enemy_9029_acfnc_2';
@@ -32,7 +31,6 @@ const CHAIN_RANGE = 2.5;
 const ARMOR_HIT = 0.7;
 const SLAM_RADIUS = 0.9;
 /** [ASSUMED] 后兽 blink distance (the skill blackboard has no distance). */
-const BLINK_DIST = 2;
 /** [ASSUMED] 并济 splash around the locked operator. */
 const PUNISH_RADIUS = 1.25;
 
@@ -592,10 +590,11 @@ function kitBeast(ab) {
         e.profile.noAttack = true;
         const v = -(tv(ab, 'Huge.one_minus_status_resistance', -0.8));
         b.applyStatus(e, 'resist', { source: e, value: v > 0 ? Math.min(1, v) : 0.5 });
+        // (fork) 后兽 holds the middle of the field (David's playtest of 2026-11-26: it walked the route — and has no
+        // walk animation; the event's 时移 jumps between stage tiles this mode does not have) [src: David's playtest]
         if (!b.aliveEnemies().some((o) => o !== e && o.defId === TAIL)) {
-          const route = remainingRoute(e);
-          route.start = [e.y, e.x + 1];
-          b.spawnEnemy(TAIL, partOpts(e, [e.y, e.x + 1], route));
+          const at = fieldCentre(b) ?? [e.y, e.x + 1];
+          b.spawnEnemy(TAIL, partOpts(e, at, waitAt(at[0], at[1], 'WALK')));
         }
       },
       tick(b, e, a, dt) {
@@ -635,12 +634,37 @@ function kitBeast(ab) {
         }
       },
     },
-    timed(combat, (b, e) => {
-      const r = bb(combat, 'range_radius', 1.6);
-      const scale = bb(combat, 'combat_atk_scale', 2);
-      for (const u of areaAllies(b, e, e.x, e.y, r)) hurt(b, e, u, e.s.atk * scale, 'phys');
-    }, { cond: (b, e) => !!e.blockedBy }),
+    // 【尚同】「每次被阻挡时对周围额外造成一次高额物理伤害」: once per block (the 'blocked' event), at most once per CombatAoe
+    // cooldown. (fork) Before: every cooldown (2 s) for as long as it stayed blocked — a 2× ATK area every 2 s on top of
+    // the trample (David's playtest of 2026-11-26).
+    {
+      blocked(c, b, e, a) {
+        if (!combat) return;
+        const cd = bb(combat, 'cooldown', num(combat.cooldown, 2));
+        if (a.combatAt != null && b.time - a.combatAt < cd - 1e-9) return;
+        a.combatAt = b.time;
+        const r = bb(combat, 'range_radius', 1.6);
+        const scale = bb(combat, 'combat_atk_scale', 2);
+        for (const u of areaAllies(b, e, e.x, e.y, r)) hurt(b, e, u, e.s.atk * scale, 'phys');
+      },
+    },
   ];
+}
+
+/** The ground tile nearest the middle of the battle rect, else null. */
+function fieldCentre(b) {
+  const R = b.rect;
+  if (!R) return null;
+  const cy = (R.r0 + R.r1) / 2, cx = (R.c0 + R.c1) / 2;
+  let best = null, bd = Infinity;
+  for (let r = R.r0; r <= R.r1; r++) {
+    for (let c = R.c0; c <= R.c1; c++) {
+      if (!b.grid.groundPassable(r, c)) continue;
+      const d = (r - cy) * (r - cy) + (c - cx) * (c - cx);
+      if (d < bd - 1e-9) { bd = d; best = [r, c]; }
+    }
+  }
+  return best;
 }
 
 function aimAt(unit, y, x) {
@@ -676,7 +700,6 @@ function kitTail(ab) {
   const artsScale = tv(ab, 'ReturnToDust.atk_scale', 0.5);
   const life = tv(ab, 'ReturnToDust.life_value', 1);
   const levelIv = tv(ab, 'LevelUp.interval', 500);
-  const blink = ab.sk.Blink;
   const punish = ab.sk.Punishment;
   const doom = ab.sk.GlobalDoom;
   return [
@@ -711,7 +734,8 @@ function kitTail(ab) {
         if (c.unit && c.unit.defId === BEAST) enterForm2(b, e);
       },
     },
-    timed(blink, (b, e) => tailBlink(b, e, blink)),
+    // 时移 moved it along the route and buffed by that direction; it holds the centre now, so no move and no direction
+    // (the blink is not run) [src: David's playtest 2026-11-26]
     timed(punish, (b, e) => tailPunish(b, e, punish)),
     timed(doom, (b, e) => {
       const loss = Math.abs(bb(doom, 'value', -50));
@@ -721,33 +745,6 @@ function kitTail(ab) {
       b.kill(e, null);
     }),
   ];
-}
-
-function tailBlink(b, e, sk) {
-  const fromX = e.x;
-  const from = blinkForward(b, e, BLINK_DIST);
-  if (!from) return;
-  const dx = Math.sign(e.x - fromX);
-  const allyDur = bb(sk, 'enemy_dyjsww_blink_buff[ally].duration', 30);
-  const enemyDur = bb(sk, 'enemy_dyjsww_blink_buff[enemy].duration', 30);
-  const allyAspd = bb(sk, 'enemy_dyjsww_blink_buff[ally].attack_speed', -50);
-  const enemyMove = bb(sk, 'enemy_dyjsww_blink_buff[enemy].move_speed', 2);
-  if (dx === 0) return;
-  for (const u of b.allies()) {
-    const hv = DIR_VEC[u.dir] ? DIR_VEC[u.dir][1] : 0;
-    if (hv !== 0 && Math.sign(hv) === -dx) {
-      b.addBuff(u, { key: 'enemy_dyjsww_blink_buff[ally]', duration: allyDur, mods: { aspd: allyAspd } });
-    }
-  }
-  for (const o of b.aliveEnemies()) {
-    if (o === e || o.defId === BEAST) continue;
-    const R = o.route;
-    const L = R && R.legs && R.legs[R.legIdx];
-    const sign = L && L.c != null ? Math.sign(L.c - o.x) : 0;
-    if (sign === dx) {
-      b.addBuff(o, { key: 'enemy_dyjsww_blink_buff[enemy]', duration: enemyDur, mods: { moveMul: enemyMove } });
-    }
-  }
 }
 
 function tailPunish(b, e, sk) {

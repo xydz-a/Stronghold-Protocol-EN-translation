@@ -3,6 +3,7 @@
 // (auto_chess_effect_replace is not implemented). setGameData is process-global, so this file is serial.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { enemyStealthed } from '../../server/sim/targeting.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadData } from '../../server/data.js';
@@ -1388,8 +1389,16 @@ describe('规程·序列Ⅰ bonds', { concurrency: 1 }, () => {
     const res = tnk.findBuff('bond:arcane:res');
     assert.ok(res);
     close(res.mods.resFlat, -2, 'the phys hit and the rider each drop RES');
-    h.b.applyStatus(tnk, 'stealth', { duration: 5, source: null });
-    assert.equal(!!tnk.s.flags.stealth, false);
+    // the reveal holds inside a member's range, also for a stealth that began elsewhere (David's playtest 2026-11-26)
+    h.b.applyStatus(tnk, 'stealth', { duration: 30, source: null });
+    const far = tank(h, [2, 18]);
+    h.b.applyStatus(far, 'stealth', { duration: 30, source: null });
+    h.run(0.3);
+    assert.equal(enemyStealthed(tnk), false, 'revealed in range');
+    assert.equal(enemyStealthed(far), true, 'out of range: still hidden');
+    far.x = tnk.x; far.y = tnk.y;
+    h.run(0.3);
+    assert.equal(enemyStealthed(far), false, 'walked into range: revealed');
   });
 
   test('精准 迅捷 灵巧 坚守 助力 use the season blackboards', (t) => {

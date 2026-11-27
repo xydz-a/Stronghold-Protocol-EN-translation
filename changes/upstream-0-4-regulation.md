@@ -46,6 +46,17 @@
 - Touch of the Sanguinarch, Gift of the Sanguinarch, Touch of Benevolence and Gift of Magnanimity take 90% less physical and arts damage. The unit blocking them gets +1 block per one it blocks, up to 6. Before: they had neither [src: enemies.json talents dmg_res / buff_to_blocker].
 - Enemies that appear when another one is defeated (the Sanguinarch spawns from Sarkaz Heirbearers, split children, the Parasite's gift) cost LP when they leak. They still don't count toward the wave's enemy total. Before: they leaked for free.
 
+### 规程 playtest fixes, part 4 (2026-11-26)
+
+- Arcane at 3 operators strips stealth from every enemy inside an Arcane operator's attack range, for as long as it stays there. Before: only a stealth that started inside a range was removed, so enemies that walked in already stealthed stayed hidden.
+- Bestial Hou stays in the middle of the field instead of walking the route. Its Time Shift buffs are gone with the movement they depended on [src: David's playtest].
+- Bestial Ju's extra blast when it gets blocked fires once per block. Before: it repeated every 2 s for as long as it stayed blocked, a 2× ATK area on top of its trample, which wiped most lineups [src: enemies.json enemy_2124_dyjsfg CombatAoe cooldown, combat_atk_scale].
+- Light / Heavy Rapid Crossbowmen fire their Straight Strike: 3 bolts at the first unit in their row or column, at any distance. Before: they had no ability, and with no range they never attacked [src: BWIKI 速射劲弩手].
+- Mateo's Guard's two bombs reach the first unit in line at any distance and blast a 1.1 radius around it. Before: the blast radius was read as its reach, so it fired only at units within 1.1 tiles [src: BWIKI 马特奥的近卫].
+- The Impetuous Grenadier throws one bomb down each of the four directions the first time it is hit while unblocked (200% ATK, 1.1 radius), then speeds up and loses 2 weight. Before: it had no ability.
+- Divicellular Hoarders split once below half HP: one copy at the same HP ratio, which does not split again [src: BWIKI 异光体集养者].
+- Jessica the Liberated casts her S3 once an enemy is within its range, as she already did in the other seasons. Season 3's data triggers it only when she takes damage, and her taunting Mobile Shield takes most hits, so she cast it seemingly at random (a deliberate change from the official trigger).
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.

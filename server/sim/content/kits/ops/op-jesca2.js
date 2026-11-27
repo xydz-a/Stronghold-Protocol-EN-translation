@@ -81,6 +81,21 @@ const SHIELD_ABNORMAL_KEY = 'jesca2:shield:abnormal';
 const TAG_BOMB = 'jesca2:bomb';
 
 const bbOf = (chess, id) => skillRec(chess, id)?.bb ?? {};
+/** S3's trigger when its record has the bare TAKE_DAMAGE of 规程 (no `also` list): the default seasons' list, ACTIVE_RANGE on
+ *  her range grown `ext` tiles forward. {} otherwise (the record's own list). */
+function s3Trigger(chess, ext) {
+  const t = skillRec(chess, S3)?.trigger;
+  if (!t || t.rule !== 'TAKE_DAMAGE' || Array.isArray(t.also)) return {};
+  const base = Array.isArray(chess?.rangeGrid) && chess.rangeGrid.length ? chess.rangeGrid : [[0, 0], [0, 1], [0, 2]];
+  const seen = new Set(), grid = [];
+  for (const [dr, dc] of base) {
+    for (let k = 0; k <= ext; k++) {
+      const key = `${dr},${dc + k}`;
+      if (!seen.has(key)) { seen.add(key); grid.push([dr, dc + k]); }
+    }
+  }
+  return { trigger: { rule: 'TAKE_DAMAGE', also: [{ rule: 'SEARCH' }, { rule: 'ACTIVE_RANGE', grid }] } };
+}
 /** A 机动盾牌 of `unit`. */
 const isShieldOf = (t, unit) => !!t && t.kind === 'token' && t.defId === SHIELD && t.ownerUnit === unit;
 const shieldsOf = (battle, unit) => battle.allyUnits.filter((t) => isShieldOf(t, unit));
@@ -236,6 +251,10 @@ export default {
         },
         [S3]: {
           kind: 'ammo', ammo: num(b3['attack@trigger_time'], 20),
+          // (fork) the 规程 record carries TAKE_DAMAGE alone; it gets the other seasons' list (TAKE_DAMAGE, SEARCH, then the kept
+          // ACTIVE_RANGE deviation on her range + the forward extend): her taunting 机动盾牌 draws the hits, so she cast it
+          // seemingly at random, at times not even while blocking — the owner's decision of 2026-11-26 (David's playtest).
+          ...s3Trigger(chess, num(b3.ability_range_forward_extend, 1)),
           targeting: { rangeExtend: num(b3.ability_range_forward_extend, 1) },
           mods: { atkPct: num(b3.atk), defPct: num(b3['jesca2_s_3[def].def']), batPct: batMod(b3.base_attack_time, chess) },
           onStart({ battle, unit }) { unit.mem.jescaBomb = !!markOf(battle, unit); },

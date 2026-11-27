@@ -155,7 +155,10 @@ test('矩兽 tramples on its interval, overloads below half health, and 后兽 d
   put(h, BEAST, [9, 10]);
   const tail = h.enemy(TAIL);
   assert.ok(tail);
-  assert.equal(Math.round(tail.x), 11);
+  // (fork) 后兽 holds the middle of the field and stays there (David's playtest 2026-11-26)
+  const R = h.b.rect;
+  assert.ok(Math.abs(tail.x - (R.c0 + R.c1) / 2) <= 1 && Math.abs(tail.y - (R.r0 + R.r1) / 2) <= 1, `centre (${tail.x}, ${tail.y})`);
+  const at = [tail.x, tail.y];
   assert.equal(tail.s.flags.untargetable, true);
   h.step(1);
   const gun = h.allies()[0];
@@ -165,6 +168,8 @@ test('矩兽 tramples on its interval, overloads below half health, and 后兽 d
   assert.equal(gun.hp, start);
   h.run(0.6);
   assert.ok(gun.hp < start);
+  h.run(40);
+  assert.deepEqual([tail.x, tail.y], at, 'no 时移 move');
 
   const h2 = fight();
   const beast = put(h2, BEAST, [9, 10]);
@@ -181,6 +186,19 @@ test('矩兽 tramples on its interval, overloads below half health, and 后兽 d
   assert.equal(t3.alive, true);
   assert.equal(b3.alive, false);
   assert.ok(!t3.s.flags.untargetable);
+});
+
+test('矩兽 【尚同】 adds its block blast once per block, not every cooldown while blocked', () => {
+  const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 9 }] });
+  const beast = put(h, BEAST, [9, 10]);
+  h.step(1);
+  const gun = h.allies()[0];
+  const blast = () => { const hp = gun.hp; h.b.emit('blocked', { blocker: gun, enemy: beast }); return hp - gun.hp; };
+  assert.ok(blast() > 0, 'a block blasts');
+  assert.equal(blast(), 0, 'not again within the cooldown');
+  h.run(2.1);
+  assert.ok(blast() > 0, 'a later block blasts again');
+  assert.equal(h.b.errorCount, 0);
 });
 
 test('寄生者 summons one 大君之赐 per nearby knock-down and does not chain off the gift', () => {
@@ -323,3 +341,78 @@ test('规程 round multipliers use its own 攻坚装备 / 补给线II / 急行�
   assert.equal(V.config.modes.mode_multi_abyss.enemyScale['2'].speed, 1, '急行军 from round 3');
 });
 
+
+test('直击: the crossbowmen and 马特奥的近卫 shoot the first unit down their row at any distance; 掷弹兵 throws once', () => {
+  // (fork) David's playtest 2026-11-26: 速射劲弩手 had no kit; 马特奥的近卫 read projectile_range (its blast) as its reach
+  for (const key of ['enemy_1403_gunsho', 'enemy_1403_gunsho_2']) {
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 2 }, { chessId: 't_gun', row: 9, col: 1 }] });
+    const e = put(h, key, [9, 14]);
+    h.step(1);
+    const [near1, far1] = h.allies().sort((a, b) => b.x - a.x);
+    const hp = near1.hp, hp2 = far1.hp;
+    h.run(V.enemies[key].skills[0].initCooldown + 2);
+    close3(hp - near1.hp, 3 * e.s.atk, `${key}: three arrows on the first unit`);
+    assert.equal(far1.hp, hp2, 'only the first unit in line');
+    assert.equal(h.b.errorCount, 0);
+  }
+  const off = fight({ units: [{ chessId: 't_gun', row: 10, col: 2 }] });
+  put(off, 'enemy_1403_gunsho', [9, 14]);
+  off.step(1);
+  const u = off.allies()[0], hp0 = u.hp;
+  off.run(4);
+  assert.equal(u.hp, hp0, 'not in line: no shot');
+
+  const g = fight({ units: [{ chessId: 't_gun', row: 9, col: 2 }, { chessId: 't_gun', row: 10, col: 2 }] });
+  const gd = put(g, 'enemy_1409_bdguad_2', [9, 14]);
+  g.step(1);
+  const [a, b] = g.allies();
+  const ha = a.hp, hb = b.hp;
+  g.run(V.enemies.enemy_1409_bdguad_2.skills[0].initCooldown + 2);
+  const sc = V.enemies.enemy_1409_bdguad_2.skills[0].bb.atk_scale;
+  close3(ha - a.hp, 2 * sc * gd.s.atk, '2 bombs on the first unit');
+  close3(hb - b.hp, 2 * sc * gd.s.atk, 'the 1.1 blast catches the neighbour');
+
+  const t = fight({ units: [{ chessId: 't_gun', row: 9, col: 2 }, { chessId: 't_gun', row: 11, col: 8 }] });
+  const bm = put(t, 'enemy_1405_boomer_2', [9, 8]);
+  t.step(1);
+  const [x, y] = t.allies();
+  const hx = x.hp, hy = y.hp, speed = bm.s.moveSpeed;
+  t.b.dealDamage(x, bm, { amount: 1, type: 'true' });
+  t.run(1.5);
+  const sc2 = V.enemies.enemy_1405_boomer_2.skills[0].bb.atk_scale;
+  close3(hx - x.hp, sc2 * bm.s.atk, 'a bomb down the row');
+  close3(hy - y.hp, sc2 * bm.s.atk, 'a bomb along the column');
+  assert.ok(bm.s.moveSpeed > speed, 'faster afterwards');
+  t.b.dealDamage(x, bm, { amount: 1, type: 'true' });
+  t.run(1.5);
+  close3(hx - x.hp, sc2 * bm.s.atk, 'only once');
+  assert.equal(t.b.errorCount, 0);
+});
+
+function close3(a, b, what) { assert.ok(Math.abs(a - b) <= Math.max(1e-6, Math.abs(b) * 1e-6), `${what}: ${a} vs ${b}`); }
+
+test('诡核集养者 splits once below half health: one copy at its HP ratio, which does not split', () => {
+  // (fork) David's playtest 2026-11-26; BWIKI 异光体集养者 应激性分裂
+  for (const key of ['enemy_1436_dsdivi', 'enemy_1436_dsdivi_2']) {
+    const h = fight();
+    const e = put(h, key, [9, 10]);
+    h.step(1);
+    e.hp = e.s.maxHp * 0.6;
+    h.run(0.5);
+    assert.equal(living(h, key).length, 1, 'above half: no split');
+    e.hp = e.s.maxHp * 0.4;
+    h.run(0.5);
+    const all = living(h, key);
+    assert.equal(all.length, 2, `${key}: split`);
+    const kid = all.find((x) => x !== e);
+    assert.ok(near(kid.hpRatio, 0.4, 1e-3), `copy at the same ratio (${kid.hpRatio})`);
+    assert.ok(hypot2(kid, e) <= 0.3 + 1e-6, 'within 0.3');
+    kid.hp = kid.s.maxHp * 0.1;
+    e.hp = e.s.maxHp * 0.1;
+    h.run(1);
+    assert.equal(living(h, key).length, 2, 'neither splits again');
+    assert.equal(h.b.errorCount, 0);
+  }
+});
+
+function hypot2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }

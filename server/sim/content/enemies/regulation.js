@@ -6,6 +6,7 @@
 // Official numbers are read from the enemy record. Points with no blackboard are marked [ASSUMED].
 
 import { hypot, sin, cos } from '../../detmath.js';
+import { canTargetAlly } from '../../targeting.js';
 import {
   hurt, elem, areaAllies, auraAllies, remainingRoute, stayRoute, spawnChildren, nthOf, canCast, BOOM_RADIUS, auraBuff, watchDeaths,
   unbalancedNow,
@@ -205,41 +206,113 @@ function kitMtrbty(ab) {
   }];
 }
 
-/** 马特奥的近卫: two phys shots down a shared row or column. Unblocked damage resistance. */
+/** 诡核集养者 / 异光体集养者 「生命值首次低于一半时，分裂自身」 — 应激性分裂: 「在自身半径0.3的范围内随机一个位置以自身当前路径召唤一个
+ *  与自身生命值相同比例且无法触发技能的诡核集养者」 [src: BWIKI 异光体集养者 技能]: the first time its HP falls below
+ *  0.hp_ratio, one copy (the skill's enemy_key) at a random point within the skill's offset_bound, on its remaining route,
+ *  at its HP ratio; the copy never splits. Checked every 0.interval s. (fork) Before: no kit (David's playtest of
+ *  2026-11-26). */
+function kitDivi(ab) {
+  const sk = ab.sk['0'];
+  const key = sv(sk?.bs, 'enemy_key');
+  const ratio = tv(ab, '0.hp_ratio', 0.5);
+  const bound = bb(sk, 'offset_bound', tv(ab, '0.offset_bound', 0.3));
+  return [{
+    iv: tv(ab, '0.interval', 0.3),
+    tick(b, e, a) {
+      if (a.split || e.mem.regNoSplit || !key || !e.alive || !(e.hpRatio < ratio)) return;
+      a.split = true;
+      const ang = b.rng() * 2 * Math.PI, d = b.rng() * bound;
+      const kids = spawnChildren(b, e, key, 1, { pos: [e.y + sin(ang) * d, e.x + cos(ang) * d], route: remainingRoute(e) });
+      for (const k of kids) {
+        k.mem.regNoSplit = true;
+        k.hp = Math.max(1, k.s.maxHp * e.hpRatio);
+      }
+    },
+  }];
+}
+
+// --- 直击: row / column shots at the first unit in line ------------------------------------------------------
+
+const LINE_DIRS = Object.freeze([[0, 1], [0, -1], [1, 0], [-1, 0]]);
+/** Seconds between the shots of one 直击 volley [ASSUMED: no source gives the spacing; 0.3 s is what 马特奥的近卫's two
+ *  bombs already used here; user OK 2026-11-26]. */
+const LINE_SPACING = 0.3;
+const LINE_SPEED = 12;
+
+/**
+ * 直击 (速射轻弩手 / 速射劲弩手 / 马特奥的近卫 / 无畏掷弹兵): 「与自身处于同行列且无封阻物阻挡」 — along each of `dirs` from the
+ * enemy's tile, the nearest unit it may target (its own tile first), at any distance (攻击范围半径 −1) until the field's
+ * edge or a blocking obstacle (封阻物) [src: BWIKI 速射劲弩手 / 马特奥的近卫, 技能 and 攻击范围半径]. Returns
+ * [{ u, d, dir }] nearest first.
+ */
+function lineTargets(b, e, dirs = LINE_DIRS) {
+  const R = b.rect;
+  const at = new Map();
+  for (const u of b.allies()) {
+    if (!u.alive || !u.deployed || !canTargetAlly(e, u, true)) continue;
+    const key = Math.round(u.y) * 100 + Math.round(u.x);
+    const cur = at.get(key);
+    if (!cur || u.id < cur.id) at.set(key, u);
+  }
+  const r0 = Math.round(e.y), c0 = Math.round(e.x);
+  const out = [];
+  for (const dir of dirs) {
+    for (let k = dir === dirs[0] ? 0 : 1; k < 64; k++) { // loop-cap: a field is under 64 tiles across (own tile: once)
+      const r = r0 + dir[0] * k, c = c0 + dir[1] * k;
+      if (R && (r < R.r0 || r > R.r1 || c < R.c0 || c > R.c1)) break;
+      const u = at.get(r * 100 + c);
+      if (u) { out.push({ u, d: k, dir }); break; }
+      if (k > 0 && b.grid.isBlocked(r, c)) break;
+    }
+  }
+  out.sort((p, q) => p.d - q.d || p.u.id - q.u.id);
+  return out;
+}
+
+/** One shot of a volley: a projectile to the first unit along `dir`, `hit(target)` on arrival. */
+function lineShot(b, e, dir, hit) {
+  const t = lineTargets(b, e, [dir])[0]?.u;
+  if (!t) return;
+  b.fx('shot', { x: e.x, y: e.y, from: e.id, to: t.id, kind: 'crossBolt', dur: hypot(t.x - e.x, t.y - e.y) / LINE_SPEED });
+  b.addProjectile({ from: e, target: t, speed: LINE_SPEED, visual: 'enemy', source: e, onHit: (c) => { if (c.target && c.target.alive) hit(c.target); } });
+}
+
+/** A volley of `n` shots down the nearest line, LINE_SPACING apart; stun / silence / death stop the rest. */
+function lineVolley(b, e, n, hit) {
+  const first = lineTargets(b, e)[0];
+  if (!first) return;
+  const go = () => { if (e.alive && !e.s.flags.stun && !e.s.flags.silence) lineShot(b, e, first.dir, hit); };
+  lineShot(b, e, first.dir, hit);
+  for (let i = 1; i < n; i++) b.after(LINE_SPACING * i, go, { owner: e });
+}
+
+/** 速射轻弩手 / 速射劲弩手 「与我方处于同一直线上时进行直击：向目标方向发射3支弩箭」: each 弩箭 100% ATK phys on the first unit
+ *  in line [src: BWIKI 速射劲弩手 速射直击]. (fork) Before: no kit, so with its 0 range it never attacked (David's playtest
+ *  of 2026-11-26). */
+const GUNSHO_ARROWS = 3;
+function kitGunsho(ab) {
+  const sk = ab.sk.CrossAttack;
+  return [sk && skill(sk, (b, e) => {
+    lineVolley(b, e, GUNSHO_ARROWS, (t) => hurt(b, e, t, e.s.atk * bb(sk, 'atk_scale', 1), 'phys'));
+  }, { sil: true, cond: (b, e) => lineTargets(b, e).length > 0 })];
+}
+
+/** 马特奥的近卫: 直击 「向目标方向发射2枚爆破弹」 — each blasts projectile_range around the first unit in line, ATK ×
+ *  atk_scale phys [src: BWIKI 马特奥的近卫 爆破弹 「对首位目标周围半径1.1范围内的单位造成…物理伤害」]; unblocked damage
+ *  resistance. (fork) Before: projectile_range was read as the reach, so it shot only at units within 1.1 tiles. */
 function kitBdguad(ab) {
   const sk = ab.sk.CrossBomb;
   const dr = tv(ab, 'DmgResist.damage_resistance', 0.4);
   return [
     sk && skill(sk, (b, e) => {
-      const range = bb(sk, 'projectile_range', 1.1);
+      const r = bb(sk, 'projectile_range', 1.1);
       const times = Math.max(1, Math.min(4, bb(sk, 'times', 2)));
       const scale = bb(sk, 'atk_scale', 0.5);
-      let best = null;
-      let bd = Infinity;
-      for (const u of b.allies()) {
-        if (!u.alive) continue;
-        const line = Math.abs(u.y - e.y) < 0.5 || Math.abs(u.x - e.x) < 0.5;
-        if (!line) continue;
-        const d = hypot(u.x - e.x, u.y - e.y);
-        if (d > range + 1e-9) continue;
-        if (!best || d < bd || (d === bd && u.id < best.id)) { best = u; bd = d; }
-      }
-      if (!best) return;
-      const shot = () => { if (best.alive) hurt(b, e, best, e.s.atk * scale, 'phys'); };
-      shot();
-      for (let i = 1; i < times; i++) b.after(0.3 * i, shot);
-    }, {
-      sil: true,
-      cond: (b, e) => {
-        const range = bb(sk, 'projectile_range', 1.1);
-        for (const u of b.allies()) {
-          if (!u.alive) continue;
-          const line = Math.abs(u.y - e.y) < 0.5 || Math.abs(u.x - e.x) < 0.5;
-          if (line && hypot(u.x - e.x, u.y - e.y) <= range + 1e-9) return true;
-        }
-        return false;
-      },
-    }),
+      lineVolley(b, e, times, (t) => {
+        for (const u of areaAllies(b, e, t.x, t.y, r)) hurt(b, e, u, e.s.atk * scale, 'phys');
+        b.fx('blast', { x: t.x, y: t.y, r, id: e.id });
+      });
+    }, { sil: true, cond: (b, e) => lineTargets(b, e).length > 0 }),
     {
       hitIn(c, b, e) {
         if (e.blockedBy) return;
@@ -248,7 +321,34 @@ function kitBdguad(ab) {
         c.dmg.mul *= Math.max(0, 1 - dr);
       },
     },
-  ];
+  ].filter(Boolean);
+}
+
+/** 无畏掷弹兵 「未被阻挡状态下首次受到伤害时，向上下左右各发出一枚爆破弹，之后移动速度提升且重量下降」: once, at the first damage
+ *  it takes while unblocked, one Bomb down each of the four lines; each explodes on the first unit it meets, ATK × atk_scale
+ *  (200%) phys within projectile_range (1.1) — a line with nobody in it hits nothing; then it moves faster and its weight
+ *  drops by Light.mass_level (−2) [src: handbook line; David 2026-11-26]. Move speed ×(1 + Light.move_speed): the text
+ *  says it rises, so the 0.7 is the raise (a ×0.7 would slow it). */
+function kitBoomer(ab) {
+  const sk = ab.sk.Bomb;
+  const moveUp = tv(ab, 'Light.move_speed', 0);
+  const mass = tv(ab, 'Light.mass_level', 0);
+  return [{
+    sil: true,
+    taken(c, b, e, a) {
+      if (a.thrown || e.blockedBy || !e.alive || !(c.amount > 0)) return;
+      a.thrown = true;
+      const r = bb(sk, 'projectile_range', 1.1);
+      const scale = bb(sk, 'atk_scale', 2);
+      for (const { dir } of lineTargets(b, e)) {
+        lineShot(b, e, dir, (t) => {
+          for (const u of areaAllies(b, e, t.x, t.y, r)) hurt(b, e, u, e.s.atk * scale, 'phys');
+          b.fx('blast', { x: t.x, y: t.y, r, id: e.id });
+        });
+      }
+      b.addBuff(e, { key: 'reg:light', persist: true, visible: true, mods: { moveMul: 1 + moveUp, massFlat: mass } });
+    },
+  }];
 }
 
 /** 魂灵法骸: the cooldown stands in for one orbiting fragment (no stage-prop pickup). [ASSUMED] */
@@ -699,6 +799,9 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1191_krgrg_2: same(kitKrgrg),
   enemy_1219_mtrbty: kitMtrbty,
   enemy_1409_bdguad_2: kitBdguad,
+  enemy_1403_gunsho: kitGunsho,
+  enemy_1403_gunsho_2: same(kitGunsho),
+  enemy_1405_boomer_2: kitBoomer,
   enemy_1429_lrwzrd: kitLrwzrd,
   enemy_1429_lrwzrd_2: same(kitLrwzrd),
   enemy_1431_lrmzrd: kitLrmzrd,
@@ -722,6 +825,8 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1225_dkmage: kitDkmage,
   enemy_1225_dkmage_2: same(kitDkmage),
   enemy_1437_dsfull: kitDsfull,
+  enemy_1436_dsdivi: kitDivi,
+  enemy_1436_dsdivi_2: same(kitDivi),
   enemy_1437_dsfull_2: same(kitDsfull),
   enemy_1104_lfkght_3: kitLfkght,
   enemy_1131_sbeast: kitDeathSplit,
