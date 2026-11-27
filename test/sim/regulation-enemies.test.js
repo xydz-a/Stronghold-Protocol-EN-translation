@@ -438,3 +438,59 @@ test('萨卡兹子裔轰击者 / 毁击者: the attack lands a shell that blasts
     assert.equal(h.b.errorCount, 0);
   }
 });
+
+test('加速冲撞: 赏金猎人“骑士” and 狂暴凶豕兽 speed up while walking; the first hit adds speed-scaled damage; 凶豕兽 needs block 2', () => {
+  // (fork) David's playtest 2026-11-27: neither had a kit
+  for (const [key, trig, type] of [['enemy_1413_mmstck', 'Rush.enemy_mmstck_t[trigger]', 'arts'], ['enemy_1309_mhboar_2', 'Rush.mhboar_t[trigger]', 'phys']]) {
+    const t = V.enemies[key].talents.bb;
+    const h = fight();
+    const e = h.spawn(key, { pos: [9, 14], route: { motion: 'WALK', start: [9, 14], end: [9, 0], steps: [] } });
+    const base = e.s.moveSpeed;
+    h.run(5);
+    assert.ok(e.s.moveSpeed > base * 1.5, `${key}: accelerated (${base} → ${e.s.moveSpeed})`);
+    const step = t[`${trig}.move_speed`];
+    assert.ok(e.s.moveSpeed <= base * (1 + step * t[`${trig}.trig_cnt`]) + 1e-6, 'capped');
+    h.b.applyStatus(e, 'stun', { duration: 0.5, source: null });
+    h.run(0.2);
+    assert.ok(near(e.s.moveSpeed, 0, 1e-9) || !e.findBuff('ab:rush'), 'a stun clears it');
+    void type;
+  }
+  const boar = fight();
+  const pig = put(boar, 'enemy_1309_mhboar_2', [9, 10]);
+  assert.equal(pig.blockWeight, 2);
+});
+
+test('“投石机” / “榴弹炮” throw one snowball at range (×1.5, cross), then only melee', () => {
+  for (const key of ['enemy_1388_wingnt', 'enemy_1388_wingnt_2']) {
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 8 }, { chessId: 't_gun', row: 10, col: 8 }, { chessId: 't_gun', row: 9, col: 6 }] });
+    const e = put(h, key, [9, 10]);
+    h.step(1);
+    const at = (r, c) => h.allies().find((x) => Math.round(x.y) === r && Math.round(x.x) === c);
+    const a = at(9, 8), b = at(10, 8), far = at(9, 6);
+    const ha = a.hp, hb = b.hp, hf = far.hp;
+    assert.ok(h.runUntil(() => a.hp < ha || b.hp < hb, 8), `${key}: throws at range`);
+    h.run(0.3);
+    const dmg = e.s.atk * V.enemies[key].talents.bb['FirstAttack.attack@first_atk_scale'];
+    assert.ok(near(ha - a.hp, dmg, 1e-6) && near(hb - b.hp, dmg, 1e-6), `cross: ${ha - a.hp}, ${hb - b.hp} vs ${dmg}`);
+    assert.equal(far.hp, hf, 'outside the cross');
+    h.run(8);
+    assert.ok(near(ha - a.hp, dmg, 1e-6), 'no second throw');
+    assert.equal(h.b.errorCount, 0);
+  }
+});
+
+test('神勇的帕拉杜利斯 charges the nearest unit in its row, unblockable, for ×atk_scale_collide on contact', () => {
+  const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 4 }] });
+  const e = put(h, 'enemy_10163_mnctur_2', [9, 12]);
+  h.step(1);
+  const u = h.allies()[0];
+  const hp = u.hp;
+  const icd = V.enemies.enemy_10163_mnctur_2.skills.find((s) => s.prefabKey === 'rush').initCooldown;
+  h.run(icd + 0.2);
+  assert.ok(e.s.flags.unblockable, 'charging');
+  assert.ok(h.runUntil(() => u.hp < hp, 6), 'contact');
+  close3(hp - u.hp, e.s.atk * V.enemies.enemy_10163_mnctur_2.talents.bb['CollideChar.atk_scale_collide'], 'collide damage');
+  h.step(1);
+  assert.equal(!!e.s.flags.unblockable, false, 'the charge ends');
+  assert.equal(h.b.errorCount, 0);
+});

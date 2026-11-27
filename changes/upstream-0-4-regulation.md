@@ -58,6 +58,12 @@
 - Divicellular Hoarders split once below half HP: one copy at the same HP ratio, which does not split again [src: BWIKI 异光体集养者].
 - Jessica the Liberated casts her S3 once an enemy is within its range, as she already did in the other seasons. Season 3's data triggers it only when she takes damage, and her taunting Mobile Shield takes most hits, so she cast it seemingly at random (a deliberate change from the official trigger).
 
+### 规程 playtest fixes, part 5 (2026-11-27)
+
+- Raging Direswines and Bounty Hunter 'Knight's speed up as they walk. The Direswine gains +33.3% every 0.333 s, up to 35 times, after a 3 s wind-up; the Knight gains +50% every 0.5 s, up to 25 times. A stun or a bind clears it. Their first hit on a blocker adds damage scaled by their speed, physical for the Direswine and arts for the Knight. The Direswine also damages each unit it runs over, and only a unit with 2 block can stop it. Before: neither had any ability [src: BWIKI 狂暴凶豕兽, 赏金猎人“大骑士”].
+- Brave Palladulis charges the nearest unit in its row or column every 10 s (first at 5 s) while unblocked. It can't be blocked during the charge and deals 200% ATK on contact. Before: no ability [src: Arknights Terra Wiki, Palladulis].
+- The 'Catapult' and 'Mortar' throw their snowball: the first attack reaches 2.5 tiles and hits the target and the four tiles around it for 150% ATK. After that they only fight what blocks them. Before: their range was 0, so the throw never happened [src: BWIKI “投石机”].
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.

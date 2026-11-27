@@ -11,7 +11,8 @@ import {
   hurt, elem, areaAllies, auraAllies, remainingRoute, stayRoute, spawnChildren, nthOf, canCast, BOOM_RADIUS, auraBuff, watchDeaths,
   unbalancedNow,
 } from './helpers.js';
-import { skill, stealth, ep, refraction, reborn, deathBoom } from './archetypes.js';
+import { skill, stealth, ep, refraction, reborn, deathBoom, blockWeight } from './archetypes.js';
+import { rushKit } from './special.js';
 
 const num = (v, d) => {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -109,17 +110,115 @@ function kitLtnclr(ab) {
   }];
 }
 
-/** “投石机”: the first attack is ×scale, then it only melee-attacks. The handbook cross has no radius. */
-function kitWingnt(ab) {
+/** “投石机” / “榴弹炮” 「可以抛出巨大雪球造成十字溅射伤害」「抛出雪球后只能进行近战攻击」: its first attack is a throw at its
+ *  rawRangeRadius (2.5) — first_atk_scale × ATK on the target and on the units of the four tiles around it (十字) — then it
+ *  only attacks its blocker [src: BWIKI “投石机” 「抛出的巨大雪球造成攻击力150%的十字溅射伤害」, 攻击范围半径 2.5]. (fork) Before:
+ *  the record's range is 0, so the throw never happened (David's playtest of 2026-11-27). */
+const CROSS4 = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+function kitWingnt(ab, e0) {
   const scale = tv(ab, 'FirstAttack.attack@first_atk_scale', 1.5);
+  const reach = num(e0?.def?.raw?.stats?.rawRangeRadius, 0);
   return [{
+    spawn(b, e) {
+      if (reach > 0) { e.base.rangeRadius = reach; e.profile.melee = false; }
+    },
     hitOut(c, b, e, a) {
       if (a.used || !c.dmg || !c.dmg.isAttack) return;
       a.used = true;
       c.dmg.mul *= scale;
+      const t = c.target;
+      if (t) {
+        const r0 = Math.round(t.y), c0 = Math.round(t.x);
+        for (const u of b.allies()) {
+          if (!u.alive || u === t || u.isFlying) continue;
+          const dr = Math.round(u.y) - r0, dc = Math.round(u.x) - c0;
+          if (CROSS4.some(([pr, pc]) => pr === dr && pc === dc)) hurt(b, e, u, e.s.atk * scale, 'phys', { tags: ['snowball'] });
+        }
+        b.fx('blast', { x: t.x, y: t.y, r: 1, id: e.id, kind: 'snowball' });
+      }
       e.profile.melee = true;
+      e.base.rangeRadius = 0;
     },
   }];
+}
+
+/** 狂暴凶豕兽 「只能被阻挡数大于等于2的单位阻挡」「冲撞时逐渐加速，并对经过与阻挡自身的目标根据移动速度造成伤害」: the 加速冲撞 walk
+ *  (special.js rushKit) on its Rush.mhboar_t[trigger] template — +33.3 % every 0.333 s, up to 35 layers, 晕眩 / 束缚 clear it
+ *  — after Rush.mhboar_t_predelay; the first hit on its blocker adds 当前移动速度 × FirstAttack.atk_scale phys, each unit it
+ *  walks over 当前移动速度 × Crash.atk_scale [src: BWIKI 狂暴凶豕兽 「移动时每0.333秒加速一次，每次提升33.3%移动速度，上限35次」
+ *  「1：600至1:800额外物理伤害」]. (fork) Before: no kit (David's playtest of 2026-11-27). */
+function kitMhboar(ab) {
+  return [blockWeight(2), ...rushKit(ab, { trig: 'Rush.mhboar_t[trigger]', first: 'FirstAttack.atk_scale', predelay: 'Rush.mhboar_t_predelay.predelay', crash: 'Crash.atk_scale' })];
+}
+
+/** 赏金猎人“骑士” 「移动时逐渐加速，被阻挡后的首次攻击根据移速造成额外法术伤害」: rushKit on Rush.enemy_mmstck_t[trigger] (+50 % every
+ *  0.5 s, up to 25), the first hit after a block adds 当前移动速度 × FirstAttack.atk_scale arts [src: BWIKI 赏金猎人“大骑士”
+ *  「移动时每0.5秒加速一次…（眩晕、束缚会停止并清空移速叠加）」]. (fork) Before: no kit. */
+function kitMmstck(ab) {
+  return rushKit(ab, { trig: 'Rush.enemy_mmstck_t[trigger]', first: 'FirstAttack.atk_scale', type: 'arts' });
+}
+
+/** 神勇的帕拉杜利斯 「移动方向前方有我方单位时发起冲锋，击中我方单位时造成大量物理伤害」 (入戏 is not in this mode): while unblocked, its
+ *  rush skill (cooldown 10, first at 5, silenceable) charges the nearest ground unit in its row or column — unblockable meanwhile —
+ *  and on contact (hitbox 0.45) deals CollideChar.atk_scale_collide × ATK phys, then walks on [src: Arknights Terra Wiki
+ *  Palladulis ability table]. The charge runs at PALLA_SPEED tiles/s and only along a straight line of passable ground
+ *  [ASSUMED: no source gives the speed — 1.5 tiles/s, slower than the 凶豕兽's top speed (2.5) as the owner recalls it; a
+ *  unit behind a wall or on high ground is not charged; user OK 2026-11-27]. (fork) Before: no kit. */
+const PALLA_SPEED = 1.5;
+const PALLA_HITBOX = 0.45;
+function kitPalla(ab) {
+  const sk = ab.sk.rush;
+  const scale = tv(ab, 'CollideChar.atk_scale_collide', 2);
+  const target = (b, e) => {
+    const r0 = Math.round(e.y), c0 = Math.round(e.x);
+    let best = null, bd = Infinity;
+    for (const u of b.allies()) {
+      if (!u.alive || !u.deployed || u.isFlying || !canTargetAlly(e, u, false)) continue;
+      const ur = Math.round(u.y), uc = Math.round(u.x);
+      if (ur !== r0 && uc !== c0) continue;
+      const d = Math.abs(ur - r0) + Math.abs(uc - c0);
+      if (d >= bd) continue;
+      const sr = Math.sign(ur - r0), sc = Math.sign(uc - c0);
+      let clear = true;
+      for (let k = 1; k <= d; k++) if (!b.grid.groundPassable(r0 + sr * k, c0 + sc * k)) { clear = false; break; }
+      if (clear) { best = u; bd = d; }
+    }
+    return best;
+  };
+  const end = (b, e, a) => {
+    a.charge = null;
+    b.removeBuff(e, 'reg:charge');
+    if (e.route) e.route.pts = null;
+  };
+  return [
+    sk && skill(sk, (b, e, a0) => {
+      const t = target(b, e);
+      if (!t) return;
+      const a = e.mem.regPalla || (e.mem.regPalla = {});
+      a.charge = t;
+      b.addBuff(e, { key: 'reg:charge', persist: true, flags: { unblockable: true, noMove: true } });
+      b.fx('phase', { x: e.x, y: e.y, id: e.id, kind: 'charge' });
+      void a0;
+    }, { sil: true, cond: (b, e) => !e.blockedBy && !(e.mem.regPalla && e.mem.regPalla.charge) && !!target(b, e) }),
+    {
+      tick(b, e, _a, dt) {
+        const a = e.mem.regPalla;
+        if (!a || !a.charge) return;
+        const t = a.charge;
+        if (!t.alive || !t.deployed || e.s.flags.stun || !e.alive) { end(b, e, a); return; }
+        const dx = t.x - e.x, dy = t.y - e.y, d = hypot(dx, dy);
+        if (d <= PALLA_HITBOX + 1e-9) {
+          hurt(b, e, t, e.s.atk * scale, 'phys', { tags: ['charge'] });
+          end(b, e, a);
+          return;
+        }
+        const step = Math.min(d - PALLA_HITBOX, PALLA_SPEED * dt);
+        e.x += (dx / d) * step;
+        e.y += (dy / d) * step;
+        e.moving = true;
+      },
+    },
+  ].filter(Boolean);
 }
 
 /** 冰原卫法者: silenced death boom (cold and freeze); unbalanced self HP loss is not silenced. */
@@ -810,6 +909,9 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1375_ltnclr: kitLtnclr,
   enemy_1375_ltnclr_2: same(kitLtnclr),
   enemy_1388_wingnt: kitWingnt,
+  enemy_1309_mhboar_2: kitMhboar,
+  enemy_1413_mmstck: kitMmstck,
+  enemy_10163_mnctur_2: kitPalla,
   enemy_1388_wingnt_2: same(kitWingnt),
   enemy_1067_snslime_2: kitSnslime,
   enemy_1385_winbom: kitWinbom,

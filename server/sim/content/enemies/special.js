@@ -183,18 +183,33 @@ function kitParrot(ab) {
 const RUSH_LISTEN = 0.1;
 
 function kitRush(ab) {
-  const ms = T(ab, 'rush.dlancer_t[trigger].move_speed') ?? 0;
-  const iv = stepOf('rush.dlancer_t[trigger].interval', T(ab, 'rush.dlancer_t[trigger].interval') ?? 0.5, 0.5);
-  const max = boundedCount(T(ab, 'rush.dlancer_t[trigger].trig_cnt') ?? 0, bbCap('rush.dlancer_t[trigger].trig_cnt'), 0);
-  const scale = T(ab, 'firstattack.atk_scale') ?? 0;
+  return rushKit(ab, { trig: 'rush.dlancer_t[trigger]', first: 'firstattack.atk_scale' });
+}
+
+/**
+ * The 加速冲撞 walkers (萨卡兹穿刺手 above; the 规程 kits reuse it — enemies/regulation.js): `trig` the trigger template's
+ * key prefix (`.move_speed` / `.interval` / `.trig_cnt`), `first` the FirstAttack scale key, `type` its damage type,
+ * `predelay` a key whose seconds pass before the first layer of each charge (0: one interval, as above), `crash` a key: while
+ * it accelerates, each ally whose tile it walks over (one it does not stop on — not its blocker) takes 当前移动速度 × that
+ * scale, once per charge.
+ */
+export function rushKit(ab, { trig, first, type = 'phys', predelay = null, crash = null }) {
+  const ms = T(ab, `${trig}.move_speed`) ?? 0;
+  const iv = stepOf(`${trig}.interval`, T(ab, `${trig}.interval`) ?? 0.5, 0.5);
+  const max = boundedCount(T(ab, `${trig}.trig_cnt`) ?? 0, bbCap(`${trig}.trig_cnt`), 0);
+  const scale = T(ab, first) ?? 0;
+  const wait = predelay ? Math.max(0, T(ab, predelay) ?? 0) : 0;
+  const crashScale = crash ? T(ab, crash) ?? 0 : 0;
   // 晕眩 / 束缚 only (the client's STUNNED / UNMOVABLE flags: not 冻结, 沉睡 or 浮空, which hold flags.stun here too)
   const held = (e) => e.buffs.some((x) => x.status === 'stun' || x.status === 'bind');
-  const stop = (b, e, a) => { a.on = false; a.n = 0; b.removeBuff(e, 'ab:rush'); };
+  const stop = (b, e, a) => { a.on = false; a.n = 0; a.hit = null; b.removeBuff(e, 'ab:rush'); };
+  const start = (a) => { a.on = true; a.tries = 0; a.acc = wait > 0 ? iv - wait : 0; a.hit = new Set(); };
   return [{
     iv: RUSH_LISTEN,
     // the listeners first look at once (waitFirstTriggerInterval 0): a walker spawned unblocked starts at t = 0
     spawn(b, e, a) {
-      a.on = !e.blockedBy && !held(e); a.n = 0; a.tries = 0; a.acc = 0;
+      a.on = false; a.n = 0; a.tries = 0; a.acc = 0;
+      if (!e.blockedBy && !held(e)) start(a);
       // (fork) fx: the client's dlancer_t_listener[c] → dlancer_t[trigger] keeps dlancer_t[core] (dlancer_buff_01_start) on
       // it while the charge lasts (unblocked until its charged hit, a stun or a bind) [ASSUMED: dlancer_t_predelay, which
       // holds it back, is not in its data]; display only (snapshot fxs)
@@ -203,8 +218,16 @@ function kitRush(ab) {
     tick(b, e, a, dt) {
       if (held(e)) { if (a.on) stop(b, e, a); return; }
       if (!a.on) {
-        if (!e.blockedBy) { a.on = true; a.tries = 0; a.acc = 0; }
+        if (!e.blockedBy) start(a);
         return;
+      }
+      if (crashScale > 0 && a.hit && e.s.moveSpeed > 0) {
+        const r = Math.round(e.y), c = Math.round(e.x);
+        for (const u of b.allies()) {
+          if (!u.alive || u === e.blockedBy || a.hit.has(u.id) || u.isFlying || Math.round(u.y) !== r || Math.round(u.x) !== c) continue;
+          a.hit.add(u.id);
+          b.dealDamage(e, u, { amount: e.s.moveSpeed * crashScale, type, canDodge: false, isSkill: true, noSp: true, tags: ['enemyAbility', 'rush', 'crash'] });
+        }
       }
       if (a.tries >= max || !(iv > 0)) return;
       a.acc += dt;
@@ -218,7 +241,7 @@ function kitRush(ab) {
       const t = c.target;
       const amount = e.s.moveSpeed * scale;
       stop(b, e, a);
-      if (t && t.alive && amount > 0) b.dealDamage(e, t, { amount, type: 'phys', canDodge: false, isSkill: true, noSp: true, tags: ['enemyAbility', 'rush'] });
+      if (t && t.alive && amount > 0) b.dealDamage(e, t, { amount, type, canDodge: false, isSkill: true, noSp: true, tags: ['enemyAbility', 'rush'] });
     },
   }];
 }
