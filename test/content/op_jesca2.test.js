@@ -373,3 +373,26 @@ test('规程 涤火杰西卡: the record TAKE_DAMAGE S3 casts once an enemy is i
   assert.equal(u.skill.active, true, 'an enemy in range, no damage taken: cast');
   assert.equal(h.battle.errorCount, 0);
 });
+
+test('规程 瑕光: the record TAKE_DAMAGE S3 casts with an enemy in its range, as in the other seasons (2026-11-27)', async (t) => {
+  // 剑盾骑士 fills her hurt-SP on attack, so a full S3 waited for a hit (David's playtest)
+  const { loadData } = await import('../../server/data.js');
+  const { DataSource } = await import('../../server/sim/simdata.js');
+  const { setGameData } = await import('../../server/sim/content/support/index.js');
+  const { fileURLToPath } = await import('node:url');
+  const DATA = loadData(fileURLToPath(new URL('../../data/versions/act3autochess-v3_1', import.meta.url)), { log: { warn() {}, error() {}, info() {} } });
+  assert.equal(DATA.chess.chess_char_3_12_a.skill.trigger.rule, 'TAKE_DAMAGE');
+  setGameData(DATA);
+  t.after(() => setGameData(null));
+  const h = makeBattle({ data: new DataSource(DATA), seed: 3, timeLimit: 30, autoFinish: false, units: [{ uid: 1, chessId: 'chess_char_3_12_a', row: 10, col: 3 }] });
+  h.battle.start();
+  const u = h.battle.allyUnits.find((a) => a.defId === 'chess_char_3_12_a');
+  assert.deepEqual(u.skill.rules, ['TAKE_DAMAGE', 'SKILL_RANGE']);
+  u.skill.setSpTotal(999);
+  h.run(1);
+  assert.equal(u.skill.active, false, 'no enemy: no cast');
+  h.spawn('enemy_1000_gopro_2', { pos: [10, 4], mods: { speedMul: 0, hpMul: 1000, atkMul: 0 } });
+  h.run(2);
+  assert.equal(u.skill.active, true, 'an enemy in range, no hit taken: cast');
+  assert.equal(h.battle.errorCount, 0);
+});

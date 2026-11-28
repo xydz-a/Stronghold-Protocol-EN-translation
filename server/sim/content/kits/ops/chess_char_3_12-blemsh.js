@@ -9,6 +9,8 @@ import {
 
 /** Refresh period (s) of 瑕光 S2's 生命回复速度 buff (it lasts two periods, so it never lapses while the skill runs). */
 const REGEN_IV = 0.25;
+/** S3's trigger diamond in the other seasons' record (data/chess.json chess_char_3_12_a skill.trigger.also SKILL_RANGE). */
+const S3_TRIGGER_GRID = Object.freeze([[2, 0], [1, -1], [1, 0], [1, 1], [0, -2], [0, -1], [0, 0], [0, 1], [0, 2], [-1, -1], [-1, 0], [-1, 1], [-2, 0]]);
 
 export default {
   // ---- 3_12 瑕光 · 守护者 — S3 先贤化身: ATK/DEF +, bonus arts per hit, heals another nearby ally per attack;
@@ -41,6 +43,10 @@ export default {
         // Source: author video BV1UdAHzNEVj + maintainer confirmation 2026-10-24 (§35.91).
         // 技能开启: the data's official trigger list (officialUnitBuilder officialTrigger, the owner's decision of 2026-11-10) — the live TANK row: at a hit or with an enemy in the
         // skill's range, at full HP too (it replaced the DEFAULT of §35.91).
+        // (fork) 规程's record carries TAKE_DAMAGE alone: it gets the other seasons' list (SKILL_RANGE on the same diamond).
+        // 剑盾骑士 fills her SP on attack too, so a full skill waited for a hit (David's playtest of 2026-11-27, as 涤火杰西卡).
+        ...(d.skill?.trigger?.rule === 'TAKE_DAMAGE' && !Array.isArray(d.skill.trigger.also)
+          ? { trigger: { rule: 'TAKE_DAMAGE', also: [{ rule: 'SKILL_RANGE', grid: copyGrid(d.skill?.trigger?.customRangeGrid) ?? S3_TRIGGER_GRID }] } } : {}),
         mods: { atkPct: num(bb.atk), defPct: num(bb.def) },
         heal: false,
         attack: { onHit({ battle, unit, target }) {

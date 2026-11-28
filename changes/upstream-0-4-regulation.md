@@ -85,6 +85,7 @@ Every Season 3 enemy whose handbook lists an ability was checked for code behind
 - Not done: abilities tied to event-only mechanics (the Miner Guerrillas, power armor, chains, heaters, music modes), the Raging Man Eater's devour, the Fortbreaker's missiles and the Desperate Breadwinner's aura.
 
 Also:
+- Blemishine casts her S3 once an enemy is within its range, as she already did in the other seasons. Season 3's data triggers it only when she takes damage, and her Sword and Shield Knight talent fills that skill's SP on attack too, so a full skill waited for her to get hit.
 - Touch's Field Medic appears in battle on every player's field. Before: when an AI or another player took Touch, the others saw the medic in preparation but not in battle.
 
 ### Official effects come with the release art
