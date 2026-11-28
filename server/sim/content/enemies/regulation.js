@@ -330,6 +330,217 @@ function kitDivi(ab) {
   }];
 }
 
+// --- the 2026-11-27 audit: Season 3 enemies whose handbook ability had no kit (David's playtest) ---------------
+
+/** 开天汽水瓶 「移动时逐渐加速，但会持续损失生命」: every enemy_nscola[speed].interval s that it walks unblocked, move speed
+ *  +move_speed (MULTIPLIER, the layers add up) up to max_time layers, and each such tick it loses fixed_value_damage HP
+ *  (a 流失) [ASSUMED: the loss runs on the same interval; max_time read as a layer count, the owner's reading; user OK
+ *  2026-11-27]. */
+function kitNscola(ab) {
+  const p = 'Passive.enemy_nscola[speed]';
+  const ms = tv(ab, `${p}.move_speed`, 0);
+  const iv = Math.max(0.1, tv(ab, `${p}.interval`, 0.5));
+  const maxT = tv(ab, `${p}.max_time`, 0);
+  const loss = tv(ab, 'Passive.fixed_value_damage', 0);
+  const cap = Math.max(0, Math.floor(maxT));
+  return [{
+    iv,
+    tick(b, e, a) {
+      if (!e.alive || e.blockedBy || e.s.flags.stun || e.s.flags.noMove || !(e.s.moveSpeed > 0)) return;
+      a.n = a.n ?? 0;
+      if (a.n < cap) {
+        a.n++;
+        b.addBuff(e, { key: 'reg:soda', persist: true, refresh: 'replace', mods: { moveMul: 1 + ms * a.n } });
+      }
+      if (loss > 0) b.dealHPLose({ source: e, target: e, amount: loss, type: 'true', tags: ['reg:soda'] });
+    },
+  }];
+}
+
+/** 炫目刀技厨师 「使自身周围一定范围内地面敌人的攻击速度和法术抗性提升」: ground enemies (itself excepted) within
+ *  AuraAttributeUp.range_radius ASPD +attack_speed, RES +magic_resistance, DEF +def (0) [src: its talent]. */
+function kitAgactr(ab) {
+  const r = tv(ab, 'AuraAttributeUp.range_radius', 2.5);
+  const mods = { aspd: tv(ab, 'AuraAttributeUp.attack_speed', 0), resFlat: tv(ab, 'AuraAttributeUp.magic_resistance', 0) };
+  const def = tv(ab, 'AuraAttributeUp.def', 0);
+  if (def) mods.defPct = def;
+  return [{
+    iv: 0.5,
+    tick(b, e) {
+      for (const o of b.enemiesInRadius(e.x, e.y, r)) if (o !== e && o.alive && o.motion !== 'FLY') auraBuff(b, o, 'reg:chef', 0.5, mods);
+    },
+  }];
+}
+
+/** 残党乐团 / 巫王乐团 鼓手 and 圆号手 「攻击2次后，下一次攻击…」: the record's SP skill (spCost 2, +1 SP a normal attack): the
+ *  third attack hits every unit in its range (鼓手, 「对攻击范围内所有目标造成溅射伤害」) or one more target (圆号手). The
+ *  激昂 / 沉郁变奏 are the event's music, not in this mode. The skill line is flagged SILENCE (沉默 stops it). The 鼓手's
+ *  record range is −1: DRUM_RANGE [ASSUMED: no source gives its radius here; 2 tiles, the owner's call; user OK
+ *  2026-11-27]. */
+const DRUM_RANGE = 2;
+function kitOrchestra(kind) {
+  return (ab, e0) => {
+    const sk = ab.sk.aoeAttack || ab.sk.attackTwoTarget;
+    const cost = Math.max(1, num(sk?.sp, 2));
+    const raw = num(e0?.def?.raw?.stats?.rawRangeRadius, 0);
+    return [{
+      spawn(b, e) {
+        if (kind === 'drum' && !(e.base.rangeRadius > 0)) { e.base.rangeRadius = raw > 0 ? raw : DRUM_RANGE; e.profile.melee = false; }
+      },
+      // silenced, the armed extra target lapses
+      tick(b, e) { if (kind === 'horn' && e.s.flags.silence) e.profile.maxTargets = 1; },
+    }, {
+      sil: true,
+      attack(c, b, e, a) {
+        a.sp = (a.sp ?? 0) + 1;
+        if (a.sp < cost) return;
+        if (a.sp === cost) { if (kind === 'horn') e.profile.maxTargets = 2; return; }   // the next attack is the skill's
+        a.sp = 0;
+        if (kind === 'horn') { e.profile.maxTargets = 1; return; }
+        const t = c.targets ? c.targets[0] : c.target;
+        for (const u of areaAllies(b, e, e.x, e.y, e.base.rangeRadius)) {
+          if (u !== t && u.alive) hurt(b, e, u, e.s.atk, e.def.dmgType === 'arts' ? 'arts' : 'phys', { isSkill: false, tags: ['drumSplash'] });
+        }
+      },
+    }];
+  };
+}
+
+/** 雪怪小队 「攻击被冻结的目标时攻击力提升」: ×atkup.atk_scale on a frozen target [src: its talent]. */
+function kitSnsbr(ab) {
+  const scale = tv(ab, 'atkup.atk_scale', 1);
+  return [{ hitOut(c) { if (c.dmg && c.dmg.isAttack && c.target && c.target.s.flags.freeze) c.dmg.mul *= scale; } }];
+}
+
+/** 沸血骑士团精锐 「每有一个敌人死亡时攻击力与攻击速度提升，最多提升10次」: each other enemy's knock-down ATK +enhance.atk, ASPD
+ *  +enhance.attack_speed, up to enhance.max_stack_cnt times [src: its talent]. */
+function kitWdkght(ab) {
+  const atk = tv(ab, 'enhance.atk', 0), aspd = tv(ab, 'enhance.attack_speed', 0);
+  const max = Math.max(0, Math.floor(tv(ab, 'enhance.max_stack_cnt', 0)));
+  return [{
+    spawn(b, e) { watchDeaths(b, e); },
+    otherDeath(c, b, e, a) {
+      const v = c.unit;
+      if (!v || v === e || v.side !== 'enemy' || c.reason !== 'killed' || !e.alive) return;
+      a.n = Math.min(max, (a.n ?? 0) + 1);
+      b.addBuff(e, { key: 'reg:bloodboil', persist: true, visible: true, refresh: 'replace', mods: { atkPct: atk * a.n, aspd: aspd * a.n } });
+    },
+  }];
+}
+
+/** 萨卡兹子裔补给车 / 改装补给车 「在场时，重生造物的攻击力提升且攻击附带凋亡损伤」: while one stands, every 大君之触 / 之赐 on the
+ *  field ATK +attr_buff.atk per 补给车, up to max_valid_stack_cnt, and its attacks add aura.ep_damage_ratio × ATK 凋亡损伤 [src:
+ *  their talents]. */
+const DZOM_KEYS = new Set(['enemy_1220_dzoms', 'enemy_1220_dzoms_2', 'enemy_1221_dzomg', 'enemy_1221_dzomg_2']);
+function kitDsuply(ab, e0) {
+  const p = e0?.defId?.endsWith('_2') ? 'aura.enemy_dsuply_2_t[attr_buff]' : 'aura.enemy_dsuply_t[attr_buff]';
+  const atk = tv(ab, `${p}.atk`, 0);
+  const max = Math.max(1, Math.floor(tv(ab, `${p}.max_valid_stack_cnt`, 1)));
+  const ratio = tv(ab, 'aura.ep_damage_ratio', 0);
+  return [{
+    iv: 0.5,
+    tick(b, e) {
+      const n = Math.min(max, b.enemies.filter((o) => o.alive && o.defId.startsWith('enemy_1224_dsuply')).length);
+      for (const o of b.enemies) {
+        if (!o.alive || !DZOM_KEYS.has(o.defId)) continue;
+        b.addBuff(o, { key: 'reg:dsuply', duration: 0.6, refresh: 'replace', mods: { atkPct: atk * n }, data: { ep: ratio } });
+      }
+    },
+  }];
+}
+
+/** 恶尘源石虫 「死亡时对周围我方单位造成物理伤害」: Boom.atk_scale × ATK phys on a knock-down, the slugs' radius. The 源石污染区
+ *  and the 活性源石风暴 are not in this mode. */
+function kitLrboom(ab) {
+  return [deathBoom({ scale: tv(ab, 'Boom.atk_scale', 1) })];
+}
+
+/** 纤核漂游者 「优先攻击高台单位」「攻击附带神经损伤」: 0.attack@ep_damage_ratio × ATK neural on a hit; its target sort puts units
+ *  on high ground first (only those while one is in reach). */
+function kitDsflys(ab) {
+  const reach = (e) => (e.base.rangeRadius || 0) + 0.25;
+  return [ep('neural', tv(ab, '0.attack@ep_damage_ratio', 0)), {
+    // while a unit on high ground is in reach, only those are candidates (e.profile.canTarget, ai.js attackTargets)
+    spawn(b, e) { e.profile.canTarget = (u) => !e.mem.regHigh || !u.ground; },
+    tick(b, e) {
+      e.mem.regHigh = b.allies().some((u) => u.alive && u.deployed && !u.ground && canTargetAlly(e, u, true) && hypot(u.x - e.x, u.y - e.y) <= reach(e));
+    },
+  }];
+}
+
+/** 聆风猎手 「受到攻击时传送到攻击者身边」: its Blink (cooldown 30, ready at once): hit by a unit, it moves to the free passable
+ *  ground tile next to that unit nearest to itself. */
+function kitShkrbt(ab) {
+  const sk = ab.sk.Blink;
+  const cd = num(sk?.bb?.cooldown, num(sk?.cd, 30));
+  return [{
+    taken(c, b, e, a) {
+      const s = c.source;
+      if (!s || s.side !== 'ally' || !s.alive || !e.alive || e.s.flags.stun || e.s.flags.silence) return;
+      if (a.at != null && b.time - a.at < cd - 1e-9) return;
+      const r0 = Math.round(s.y), c0 = Math.round(s.x);
+      let best = null, bd = Infinity;
+      for (const [dr, dc] of CROSS4) {
+        const r = r0 + dr, c = c0 + dc;
+        if (!b.grid.inRect(r, c) || !b.grid.groundPassable(r, c)) continue;
+        const d = hypot(c - e.x, r - e.y);
+        if (d < bd - 1e-9) { bd = d; best = [r, c]; }
+      }
+      if (!best) return;
+      a.at = b.time;
+      if (e.blockedBy) b._unblock(e);
+      e.x = best[1]; e.y = best[0];
+      if (e.route) e.route.pts = null;
+      b.fx('blink', { x: e.x, y: e.y, id: e.id });
+    },
+  }];
+}
+
+/** 内测版自助出餐终端 「每隔一段时间召唤1个<迷茫的修理小助手>」: its Spawn skill (cooldown 5, first at 3) — one enemy_key at its
+ *  position on its remaining route. */
+function kitMpbarr(ab) {
+  const sk = ab.sk.Spawn;
+  const key = sv(sk?.bs, 'enemy_key');
+  return [sk && key && timed(sk, (b, e) => { spawnChildren(b, e, key, 1, { pos: [e.y, e.x], route: remainingRoute(e) }); })].filter(Boolean);
+}
+
+/** 遮天面包机 「未被阻挡时持续对周围我方单位造成溅射伤害」: every Passive.interval s while unblocked, Passive.atk_scale × ATK phys
+ *  to every unit within Passive.range_radius [src: its talent]. */
+function kitNsbomb(ab) {
+  const iv = Math.max(0.1, tv(ab, 'Passive.interval', 2.5));
+  const r = tv(ab, 'Passive.range_radius', 1), scale = tv(ab, 'Passive.atk_scale', 1);
+  return [{
+    iv,
+    tick(b, e) {
+      if (e.blockedBy || !e.alive) return;
+      for (const u of areaAllies(b, e, e.x, e.y, r)) hurt(b, e, u, e.s.atk * scale, 'phys', { tags: ['toaster'] });
+    },
+  }];
+}
+
+/** 微核沉积者 「更容易被我方攻击」: taunt level +1. Its 赘生甲壳 is left out (owner's call, 2026-11-26). */
+function kitDsshel() {
+  return [{ spawn(b, e) { b.addBuff(e, { key: 'ab:taunt', mods: { taunt: 1 }, persist: true }); } }];
+}
+
+/** 新生血裔 「被击倒时留下<血珀>」 (Summon.enemy_key, stationary, outside the count) and 「攻击时恢复攻击伤害一定比例的生命」
+ *  (vampire.heal_scale × the damage its hits deal); 「根据目标当前阻挡的敌人数量增加攻击力」: ×(DamageUp.add_on +
+ *  DamageUp.scale_ratio × the enemies its target blocks) [ASSUMED: the two keys read as that factor; user OK 2026-11-27]. */
+function kitDfello(ab) {
+  const key = sv(ab.tS, 'Summon.enemy_key');
+  const cnt = tv(ab, 'Summon.cnt', 1);
+  const heal = tv(ab, 'vampire.heal_scale', 0);
+  const base = tv(ab, 'DamageUp.add_on', 1), per = tv(ab, 'DamageUp.scale_ratio', 0);
+  return [{
+    hitOut(c) { if (c.dmg && c.dmg.isAttack && c.target) c.dmg.mul *= base + per * (c.target.blocking?.length ?? 0); },
+    dealt(c, b, e) { if (heal > 0 && c.amount > 0 && e.alive) b.heal(e, e, c.amount * heal); },
+    death(c, b, e) {
+      if (c.reason !== 'killed' || !key || !(cnt > 0)) return;
+      spawnChildren(b, e, key, cnt, { route: stayRoute(e), countInTotal: false, mods: null });
+    },
+  }];
+}
+
 // --- 直击: row / column shots at the first unit in line ------------------------------------------------------
 
 const LINE_DIRS = Object.freeze([[0, 1], [0, -1], [1, 0], [-1, 0]]);
@@ -377,9 +588,14 @@ function lineShot(b, e, dir, hit) {
 }
 
 /** A volley of `n` shots down the nearest line, LINE_SPACING apart; stun / silence / death stop the rest. */
+/** Seconds a 直击 shooter stands after its volley's last shot (it stands from the first) [ASSUMED: no source gives it; the
+ *  重弩突袭者 stands its whole 2.5 s skill; user OK 2026-11-27]. */
+const LINE_STAND = 1;
 function lineVolley(b, e, n, hit) {
   const first = lineTargets(b, e)[0];
   if (!first) return;
+  // (fork) it stands while it fires, as the 重弩突袭者 does (David's playtest of 2026-11-27)
+  b.addBuff(e, { key: 'reg:aim', duration: LINE_SPACING * (n - 1) + LINE_STAND, refresh: 'replace', flags: { noMove: true } });
   const go = () => { if (e.alive && !e.s.flags.stun && !e.s.flags.silence) lineShot(b, e, first.dir, hit); };
   lineShot(b, e, first.dir, hit);
   for (let i = 1; i < n; i++) b.after(LINE_SPACING * i, go, { owner: e });
@@ -437,6 +653,7 @@ function kitBoomer(ab) {
     taken(c, b, e, a) {
       if (a.thrown || e.blockedBy || !e.alive || !(c.amount > 0)) return;
       a.thrown = true;
+      b.addBuff(e, { key: 'reg:aim', duration: LINE_STAND, refresh: 'replace', flags: { noMove: true } });
       const r = bb(sk, 'projectile_range', 1.1);
       const scale = bb(sk, 'atk_scale', 2);
       for (const { dir } of lineTargets(b, e)) {
@@ -806,6 +1023,8 @@ function kitDzom(ab) {
   const per = tv(ab, 'buff_to_blocker.block_cnt', 0);
   const cap = Math.max(0, Math.floor(tv(ab, 'buff_to_blocker.max_valid_stack_cnt', 0)));
   const list = [];
+  // a 萨卡兹子裔补给车 on the field: its attacks add 凋亡损伤 (kitDsuply's buff carries the ratio)
+  list.push({ dealt(c, b, e) { const s = e.findBuff('reg:dsuply'); const r = s?.data?.ep; if (r > 0 && c.target) elem(b, e, c.target, 'apoptosis', e.s.atk * r); } });
   if (dr > 0) {
     list.push({
       hitIn(c) {
@@ -909,6 +1128,24 @@ export const REGULATION_KITS = Object.freeze({
   enemy_1375_ltnclr: kitLtnclr,
   enemy_1375_ltnclr_2: same(kitLtnclr),
   enemy_1388_wingnt: kitWingnt,
+  enemy_10146_nscola: kitNscola,
+  enemy_10229_agactr_2: kitAgactr,
+  enemy_1376_ltndru: kitOrchestra('drum'),
+  enemy_1376_ltndru_2: kitOrchestra('drum'),
+  enemy_1373_ltnhor: kitOrchestra('horn'),
+  enemy_1373_ltnhor_2: kitOrchestra('horn'),
+  enemy_1064_snsbr: kitSnsbr,
+  enemy_1103_wdkght_2: kitWdkght,
+  enemy_1104_lfkght: kitLfkght,
+  enemy_1224_dsuply: kitDsuply,
+  enemy_1224_dsuply_2: kitDsuply,
+  enemy_1424_lrboom: kitLrboom,
+  enemy_1435_dsflys: kitDsflys,
+  enemy_2135_shkrbt: kitShkrbt,
+  enemy_10077_mpbarr: kitMpbarr,
+  enemy_10147_nsbomb: kitNsbomb,
+  enemy_1434_dsshel: kitDsshel,
+  enemy_1360_dfello: kitDfello,
   enemy_1309_mhboar_2: kitMhboar,
   enemy_1413_mmstck: kitMmstck,
   enemy_10163_mnctur_2: kitPalla,

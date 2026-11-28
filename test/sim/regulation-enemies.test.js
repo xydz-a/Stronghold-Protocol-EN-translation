@@ -494,3 +494,111 @@ test('神勇的帕拉杜利斯 charges the nearest unit in its row, unblockable,
   assert.equal(!!e.s.flags.unblockable, false, 'the charge ends');
   assert.equal(h.b.errorCount, 0);
 });
+
+test('2026-11-27 audit: the Season 3 enemies whose handbook ability had no kit now act', () => {
+  const wk = (r, c0, c1) => ({ motion: 'WALK', start: [r, c0], end: [r, c1], steps: [] });
+  // 开天汽水瓶: speeds up while walking and loses HP
+  {
+    const h = fight();
+    const e = h.spawn('enemy_10146_nscola', { pos: [9, 14], route: wk(9, 14, 0) });
+    const s0 = e.s.moveSpeed, hp0 = e.hp;
+    h.run(2.1);
+    assert.ok(e.s.moveSpeed > s0 && e.hp < hp0, `soda: ${s0}→${e.s.moveSpeed}, ${hp0}→${e.hp}`);
+  }
+  // 炫目刀技厨师: ground enemies around it ASPD +50, RES +25
+  {
+    const h = fight();
+    put(h, 'enemy_10229_agactr_2', [9, 10]);
+    const o = put(h, 'enemy_1000_gopro_2', [9, 11]);
+    const res0 = o.s.res, asp0 = o.s.aspd;
+    h.run(0.6);
+    assert.ok(o.s.res === res0 + 25 && o.s.aspd === asp0 + 50, `chef aura: res ${res0}→${o.s.res}, aspd ${asp0}→${o.s.aspd}`);
+  }
+  // 巫王乐团鼓手: attacks at range; its third attack also hits the others in range
+  {
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 9 }, { chessId: 't_gun', row: 10, col: 9 }] });
+    const e = put(h, 'enemy_1376_ltndru_2', [9, 10]);
+    h.step(1);
+    assert.ok(e.base.rangeRadius > 0, 'a range');
+    const hps = h.allies().map((u) => u.hp);
+    h.run(e.s.interval * 3 + 1);
+    const hit = h.allies().filter((u, i) => u.hp < hps[i]).length;
+    assert.equal(hit, 2, 'the splash reached the second unit');
+    // silenced: no splash
+    const h2 = fight({ units: [{ chessId: 't_gun', row: 9, col: 9 }, { chessId: 't_gun', row: 10, col: 9 }] });
+    const d2 = put(h2, 'enemy_1376_ltndru_2', [9, 10]);
+    h2.step(1);
+    h2.b.applyStatus(d2, 'silence', { duration: 60, source: null, force: true });
+    const hp2 = h2.allies().map((u) => u.hp);
+    h2.run(d2.s.interval * 3 + 1);
+    assert.equal(h2.allies().filter((u, i) => u.hp < hp2[i]).length, 1, 'silenced: one target only');
+  }
+  // 雪怪小队 ×1.5 on a frozen target
+  {
+    const h = fight({ units: [{ chessId: 't_wall', row: 9, col: 9 }] });
+    put(h, 'enemy_1064_snsbr', [9, 9.6]);
+    h.step(1);
+    const u = h.allies()[0];
+    h.b.applyStatus(u, 'freeze', { duration: 60, source: null, force: true });
+    const hp = u.hp;
+    assert.ok(h.runUntil(() => u.hp < hp, 6));
+    close3(hp - u.hp, V.enemies.enemy_1064_snsbr.stats.atk * 1.5, 'frozen ×1.5');
+  }
+  // 沸血骑士团精锐: another enemy's knock-down powers it up
+  {
+    const h = fight();
+    const e = put(h, 'enemy_1103_wdkght_2', [9, 10]);
+    const other = put(h, 'enemy_1000_gopro_2', [9, 12]);
+    const atk = e.s.atk;
+    h.b.kill(other, null);
+    h.step(1);
+    assert.ok(e.s.atk > atk, 'bloodboil');
+  }
+  // 补给车: the 大君之触 on the field ATK up
+  {
+    const h = fight();
+    put(h, 'enemy_1224_dsuply', [9, 12]);
+    const z = put(h, 'enemy_1220_dzoms', [9, 8]);
+    const atk = z.s.atk;
+    h.run(0.6);
+    assert.ok(z.s.atk > atk && z.findBuff('reg:dsuply'), 'ASV aura');
+  }
+  // 恶尘源石虫: its death hurts the units around it
+  {
+    const h = fight({ units: [{ chessId: 't_wall', row: 9, col: 9 }] });
+    const e = put(h, 'enemy_1424_lrboom', [9, 9.8]);
+    h.step(1);
+    const u = h.allies()[0], hp = u.hp;
+    h.b.kill(e, null);
+    h.step(1);
+    assert.ok(u.hp < hp, 'caustic boom');
+  }
+  // 聆风猎手: hit, it lands next to the attacker
+  {
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 3 }] });
+    const e = put(h, 'enemy_2135_shkrbt', [9, 12]);
+    h.step(1);
+    const u = h.allies()[0];
+    h.b.dealDamage(u, e, { amount: 1, type: 'phys' });
+    assert.ok(Math.abs(e.x - u.x) + Math.abs(e.y - u.y) <= 1 + 1e-6, `blinked to (${e.x}, ${e.y})`);
+  }
+  // 内测版自助出餐终端 summons, 遮天面包机 splashes while unblocked, 微核沉积者 draws attacks, 新生血裔 leaves a 血珀
+  {
+    const h = fight({ units: [{ chessId: 't_gun', row: 9, col: 9 }] });
+    put(h, 'enemy_10077_mpbarr', [9, 12]);
+    const tb = put(h, 'enemy_10147_nsbomb', [9, 9.6], 'FLY');
+    const sh = put(h, 'enemy_1434_dsshel', [10, 12]);
+    const df = put(h, 'enemy_1360_dfello', [10, 13]);
+    h.step(1);
+    const u = h.allies()[0], hp = u.hp;
+    h.run(3.6);
+    assert.ok(living(h, 'enemy_10073_mpcar').length >= 1, 'meal distributor summons');
+    assert.ok(u.hp < hp, 'toaster splash');
+    assert.ok(sh.s.taunt >= 1, 'depositor taunt');
+    h.b.kill(df, null);
+    h.step(1);
+    assert.equal(living(h, 'enemy_1367_dseed').length, 1, 'blood amber');
+    void tb;
+    assert.equal(h.b.errorCount, 0);
+  }
+});

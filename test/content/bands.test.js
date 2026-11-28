@@ -702,8 +702,8 @@ test('Touch 外勤医疗: every player of a match with the band gets 预备干�
   assert.deepEqual(amedicCharsFor(1), ['char_605_cmedic']);
   assert.deepEqual(amedicCharsFor(2), ['char_613_acmedc']);
   const ops = { t_e1_b: op('t_e1_b', { golden: true }), t_e2_b: op('t_e2_b', { golden: true }), t_n: op('t_n') };
-  const run = (unitsIds, { band = 'band_amedic', matchBands = null } = {}) => {
-    const players = [{ playerId: 'p1', seat: 0, side: 'L', colOffset: 0, bonds: {}, bandId: band, playerEffects: [],
+  const run = (unitsIds, { band = 'band_amedic', matchBands = null, commandEffectId = undefined } = {}) => {
+    const players = [{ playerId: 'p1', seat: 0, side: 'L', colOffset: 0, bonds: {}, bandId: band, playerEffects: [], commandEffectId,
       units: unitsIds.map((id, i) => ({ uid: i + 1, kind: 'chess', chessId: id, row: 10 + i, col: 5 })),
       contentInfo: matchBands ? { matchBands } : undefined }];
     const h = fight({ ops, players, stageId: 'act2autochess_m01' });
@@ -714,6 +714,12 @@ test('Touch 外勤医疗: every player of a match with the band gets 预备干�
   assert.deepEqual(run(['t_e1_b', 't_e2_b']), [['char_613_acmedc', 10, 2]]);
   assert.deepEqual(run(['t_n'], { band: null, matchBands: ['band_bldsk', 'band_amedic'] }), [['char_605_cmedic', 10, 2]], 'a teammate holds it');
   assert.deepEqual(run(['t_n'], { band: null }), [], 'nobody holds it');
+  // (fork) 规程: a player whose own 指令 is another strategy's still gets the medic someone else's Touch grants (David's
+  // playtest 2026-11-27: an AI took Touch, the others' fields showed it in prep only); Touch's own holder whose 指令 no
+  // longer carries it gets none
+  assert.deepEqual(run(['t_n'], { band: 'band_bldsk', matchBands: ['band_bldsk', 'band_amedic'], commandEffectId: 'cmd_other' }),
+    [['char_605_cmedic', 10, 2]], 'another strategy\'s 指令');
+  assert.deepEqual(run(['t_n'], { commandEffectId: 'cmd_other' }), [], 'Touch holder whose 指令 was changed');
   cover('band_amedic');
 });
 

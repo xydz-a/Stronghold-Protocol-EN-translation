@@ -256,8 +256,13 @@ export function amedicCharsFor(elites, variants = amedicVariants()) {
 function installMapChars(battle) {
   const variants = amedicVariants();
   if (!variants.length) return;
+  // (fork) The 规程 command check applies to the strategy's own holder only (a holder whose 指令 no longer carries the map
+  // character, e.g. after 更换指令). Before, it ran on every player: one whose own command is another strategy's — every
+  // other player when an AI or a teammate took Touch — got no medic in battle though the prep field showed it (David's
+  // playtest of 2026-11-27; "所有玩家场上出现一名<预备干员-医疗>").
+  const ownsMedic = (ps) => (bandRecord(ps.bandId)?.effectRef ?? ps.bandId) === AMEDIC_BAND;
   const holders = battle.players.filter((ps) => matchBands(battle, ps.playerId).includes(AMEDIC_BAND)
-    && (!ps.input.commandEffectId || buffsOf(battle.data.raw.effects?.[ps.input.commandEffectId]).some(isMapCharBuff)));
+    && (!ownsMedic(ps) || !ps.input.commandEffectId || buffsOf(battle.data.raw.effects?.[ps.input.commandEffectId]).some(isMapCharBuff)));
   if (!holders.length) return;
   battle.on('battleStart', () => {
     const chars = [];

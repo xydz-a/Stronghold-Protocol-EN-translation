@@ -64,6 +64,29 @@
 - Brave Palladulis charges the nearest unit in its row or column every 10 s (first at 5 s) while unblocked. It can't be blocked during the charge and deals 200% ATK on contact. Before: no ability [src: Arknights Terra Wiki, Palladulis].
 - The 'Catapult' and 'Mortar' throw their snowball: the first attack reaches 2.5 tiles and hits the target and the four tiles around it for 150% ATK. After that they only fight what blocks them. Before: their range was 0, so the throw never happened [src: BWIKI “投石机”].
 
+### 规程 playtest fixes, part 6 (2026-11-27): an audit of enemy abilities
+
+Every Season 3 enemy whose handbook lists an ability was checked for code behind it. These had none and now act:
+- Skybuster Soda speeds up as it walks (+30% every 0.5 s, up to 25 times) and loses HP as it goes [src: enemies.json enemy_10146_nscola Passive; David 2026-11-27].
+- Dazzling Blade Chef: ground enemies around it gain attack speed and arts resistance [src: its talent].
+- Witch King's / Remnant Orchestra Drummer: it attacks from range, and every third attack hits every unit in range. The Hornist's third attack hits a second target. Silence stops both.
+- Yeti Operative: more damage against frozen targets.
+- Bloodboil Knightclub Elite: stronger each time another enemy falls, up to 10 times.
+- Blade Helmet Knightclub Trainee: weakens your strongest unit and revives once.
+- Sarkaz Heirbearer ASV: Sanguinarch spawns gain ATK and add Apoptosis while it lives.
+- Caustic Originium Slug: explodes on death.
+- Toxocellular Drifter: adds Nervous Impairment and targets units on high ground first.
+- Windlistener Hunter: blinks next to whoever hits it.
+- Mockup Auto Meal Distributor: summons a helper every 5 s [src: enemies.json enemy_10077_mpbarr Spawn cooldown].
+- Flying Toaster: damages units around it while unblocked.
+- Exocellular Depositor: draws attacks. Its shell is still left out.
+- Bloodborn Spawn: heals from its hits, hits harder against units that block more enemies, and leaves a Blood Amber.
+- The straight-line shooters (crossbowmen, Mateo's Guard, the Grenadier) stop to fire, like the Heavy Crossbowman Ambusher.
+- Not done: abilities tied to event-only mechanics (the Miner Guerrillas, power armor, chains, heaters, music modes), the Raging Man Eater's devour, the Fortbreaker's missiles and the Desperate Breadwinner's aura.
+
+Also:
+- Touch's Field Medic appears in battle on every player's field. Before: when an AI or another player took Touch, the others saw the medic in preparation but not in battle.
+
 ### Official effects come with the release art
 
 - `npm run assets:release-local` now also installs `data/local-fx.json`, the file list of the official battle effects, when the release zip has one (v0.4.0 does). Before: the effects' files arrived but were never served, so the board drew the game's own effects and the "Official Effects" setting stayed hidden.
